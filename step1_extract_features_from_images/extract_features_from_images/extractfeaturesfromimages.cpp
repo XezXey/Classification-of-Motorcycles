@@ -31,11 +31,12 @@ string generate_filename(string filename, int filenum);
 int image_preprocessing(String input_filename);
 int video_preprocessing(String input_filename);
 string save_roi_file(Mat motorcycle_roi, int filenum);
+vector<Point> check_correct_tl_br(Point tl, Point br);
 
 
 
 /** Global variables */
-String motorcycle_plate_cascade_name = "cascade_motor-1.xml";
+String motorcycle_plate_cascade_name = "cascade_motor_plate.xml";
 CascadeClassifier motorcycle_plate_cascade;
 String window_name = "Capture - Motorcycle Plate detection";
 String window_roi = "ROI - Motorcycle";
@@ -49,7 +50,7 @@ int main(int argc, char** argv)
 	String input_filename = argv[2];
 	//-- 1. Load the cascades
 	if (!motorcycle_plate_cascade.load(motorcycle_plate_cascade_name)) {
-		printf("--(!)Error loading face cascade\n");
+		printf("--(!)Error loading plates cascade\n");
 		return -1;
 	};
 	
@@ -113,11 +114,14 @@ int image_preprocessing(String input_filename)
 	Size img_size(640, 480);
 	Mat motorcycle_image;
 	motorcycle_image = imread(input_filename);
+
 	if (!motorcycle_image.data) {
 		cout << "Could not open or find the image" << endl;
 		return -1;
 	}
 	resize(motorcycle_image, motorcycle_image, img_size);
+
+	
 
 	detect_save_display(motorcycle_image);
 	return 0;
@@ -161,6 +165,7 @@ string save_roi_file(Mat motorcycle_roi, int filenum)
 /** @function detect_save_display */
 void detect_save_display(Mat motorcycle_frame)
 {
+
 	string saved_filename;
 	vector<Rect> plates;
 	Mat motorcycle_grey;
@@ -174,6 +179,11 @@ void detect_save_display(Mat motorcycle_frame)
 	Mat motorcycle_frame_original = motorcycle_frame.clone();
 	//After use cascade dectection we get the ROI
 	//plates.size() is number of ROI		
+
+	cout << "We have : " << plates.size() << " plates." << endl;
+	cout << "Image size : ";
+	cout << "Width = " << motorcycle_frame.size().width;
+	cout << ", Height = " << motorcycle_frame.size().height << endl;
 	cout << "Plate No.: " << "  x    " << "y   " << "width   " << "height   " << endl;
 	for (size_t i = 0; i < plates.size(); i++)
 	{
@@ -187,6 +197,14 @@ void detect_save_display(Mat motorcycle_frame)
 		Point tl_rect_roi(plates[i].x - plates[i].width - 30, plates[i].y - plates[i].height - 40);
 		Point br_rect_roi(plates[i].x + (2 * plates[i].width), plates[i].y + (2 * plates[i].height));
 		Mat motorcycle_roi;
+
+
+		vector<Point> tl_br_corrected = check_correct_tl_br(tl_rect_roi, br_rect_roi);
+		tl_rect_roi = tl_br_corrected[0];
+		br_rect_roi = tl_br_corrected[1];
+
+		cout << "Corrected : " << tl_rect_roi << endl;
+		cout << "Corrected : " << br_rect_roi << endl;
 
 		#ifdef DEBUG
 			cout << "Filename : " << generate_filename(filename, (int)i) << ".JPG" << endl;
@@ -208,10 +226,14 @@ void detect_save_display(Mat motorcycle_frame)
 		Rect roi(tl_rect_roi.x, tl_rect_roi.y, (plates[i].width * 3) + 30, (plates[i].height * 3) + 40);
 		rectangle(motorcycle_frame, roi, Scalar(128, 128, 255), 2, 8, 0);
 
-	
+
+
 		motorcycle_roi = motorcycle_frame_original(roi);
 
+		
 		saved_filename = save_roi_file(motorcycle_roi, (int)i+1);
+		
+		imshow(window_name, motorcycle_grey);
 
 		//Display all ROI
 		#ifdef DEBUG
@@ -219,5 +241,14 @@ void detect_save_display(Mat motorcycle_frame)
 		#endif
 	}
 	//-- Show the output (ROI that can detect on the image by using motorcylce_cascade.xml)
-	imshow(window_name, motorcycle_frame_original);
+	//imshow(window_name, motorcycle_frame_original);
+}
+
+vector<Point> check_correct_tl_br(Point tl, Point br) 
+{
+	if (tl.x < 0)	tl.x = 0;
+	if (tl.y < 0)	tl.y = 0;
+	if (br.x > 640)	br.x = 640;
+	if (br.y > 480)	br.y = 480;
+	return { tl, br };
 }
