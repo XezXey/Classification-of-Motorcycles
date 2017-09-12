@@ -41,6 +41,8 @@ CascadeClassifier motorcycle_plate_cascade;
 String window_name = "Capture - Motorcycle Plate detection";
 String window_roi = "ROI - Motorcycle";
 String filename = "";
+int image_size_x = 640, image_size_y = 480;
+int origin_point = 0;
 
 /** @function main */
 int main(int argc, char** argv)
@@ -111,7 +113,7 @@ int video_preprocessing(String input_filename)
 int image_preprocessing(String input_filename)
 {
 	Mat motorcycle_roi;
-	Size img_size(640, 480);
+	Size img_size(image_size_x, image_size_y);
 	Mat motorcycle_image;
 	motorcycle_image = imread(input_filename);
 
@@ -133,12 +135,14 @@ string generate_filename(string filename, int filenum)
 	size_t len_filename_extension = 4;
 	filename.erase(filename.length() - len_filename_extension, len_filename_extension);
 	filename += "_plate_" + to_string(filenum);
-
+	
+	/*
 	#ifdef DEBUG
-	cout << filenum << endl;
-	cout << "Plate no." << to_string(filenum) << endl;
-	cout << "Generated filename : " << filename << endl;
+		cout << filenum << endl;
+		cout << "Plate no." << to_string(filenum) << endl;
+		cout << "Generated filename : " << filename << endl;
 	#endif
+	*/
 	return filename;
 }
 
@@ -151,11 +155,12 @@ string save_roi_file(Mat motorcycle_roi, int filenum)
 	strcpy_s(buffer_filename, generate_filename(filename, (int)filenum).c_str());
 	sprintf_s(saved_filename, "%s.JPG", buffer_filename);
 
+	/*
 	#ifdef DEBUG
 		cout << "****************************************************************" << endl;
 		cout << "Filename : " << generate_filename(filename, (int)filenum).c_str() << endl;
 	#endif // DEBUG
-
+	*/
 	
 	imwrite(saved_filename, motorcycle_roi);
 	return string(saved_filename);
@@ -181,10 +186,8 @@ void detect_save_display(Mat motorcycle_frame)
 	//plates.size() is number of ROI		
 
 	cout << "We have : " << plates.size() << " plates." << endl;
-	cout << "Image size : ";
-	cout << "Width = " << motorcycle_frame.size().width;
-	cout << ", Height = " << motorcycle_frame.size().height << endl;
-	cout << "Plate No.: " << "  x    " << "y   " << "width   " << "height   " << endl;
+	cout << "=====================================================================================" << endl;
+	
 	for (size_t i = 0; i < plates.size(); i++)
 	{
 		//Delete old Rectangle and draw it on a new image
@@ -203,16 +206,21 @@ void detect_save_display(Mat motorcycle_frame)
 		tl_rect_roi = tl_br_corrected[0];
 		br_rect_roi = tl_br_corrected[1];
 
-		cout << "Corrected : " << tl_rect_roi << endl;
-		cout << "Corrected : " << br_rect_roi << endl;
 
 		#ifdef DEBUG
-			cout << "Filename : " << generate_filename(filename, (int)i) << ".JPG" << endl;
+			cout << "**********************Plate[" << i + 1 << "]********************** " << endl;
+			cout << "Filename : " << generate_filename(filename, (int)i + 1) << ".JPG" << endl;
+			cout << "Image size : ";
+			cout << "Width = " << motorcycle_frame.size().width;
+			cout << ", Height = " << motorcycle_frame.size().height << endl;
+			cout << "Plate No.: " << "  x    " << "y   " << "width   " << "height   " << endl;
 			cout << "Plate[" << i + 1 << "] : " << plates[i].x << "   " << plates[i].y << "   " << plates[i].width << "      " 
 				<< plates[i].height << endl;
 			cout << "Each Plate Value [" << i + 1 << "] : " << plates[i] << endl;
 			cout << "topcorner_rect_roi : " << tl_rect_roi << endl;
 			cout << "bottomcorner_rect_roi : " << br_rect_roi << endl;
+			cout << "Corrected TL : " << tl_rect_roi << endl;
+			cout << "Corrected BR : " << br_rect_roi << endl;
 			cout << "=====================================================================================" << endl;
  		#endif
 
@@ -222,7 +230,7 @@ void detect_save_display(Mat motorcycle_frame)
 		//	 multiple 3 cause i use the 1:1 of plate so we will get the full image from tl and br point that need
 		//   to triple extended
 		//Use 2 lines for check that it's the same lines on same roi
-		rectangle(motorcycle_frame, tl_rect_roi, br_rect_roi, Scalar(0, 0, 255), 2, 8, 0);
+		//rectangle(motorcycle_frame, tl_rect_roi, br_rect_roi, Scalar(0, 0, 255), 2, 8, 0);
 		Rect roi(tl_rect_roi.x, tl_rect_roi.y, (plates[i].width * 3) + 30, (plates[i].height * 3) + 40);
 		rectangle(motorcycle_frame, roi, Scalar(128, 128, 255), 2, 8, 0);
 
@@ -233,7 +241,7 @@ void detect_save_display(Mat motorcycle_frame)
 		
 		saved_filename = save_roi_file(motorcycle_roi, (int)i+1);
 		
-		imshow(window_name, motorcycle_grey);
+		imshow(window_name, motorcycle_frame);
 
 		//Display all ROI
 		#ifdef DEBUG
@@ -246,9 +254,9 @@ void detect_save_display(Mat motorcycle_frame)
 
 vector<Point> check_correct_tl_br(Point tl, Point br) 
 {
-	if (tl.x < 0)	tl.x = 0;
-	if (tl.y < 0)	tl.y = 0;
-	if (br.x > 640)	br.x = 640;
-	if (br.y > 480)	br.y = 480;
+	if (tl.x <= origin_point)	tl.x = origin_point;
+	if (tl.y <= origin_point)	tl.y = origin_point;
+	if (br.x >= image_size_x)	br.x = image_size_x - 1;
+	if (br.y >= image_size_y)	br.y = image_size_y - 1;
 	return { tl, br };
 }
