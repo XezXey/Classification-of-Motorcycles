@@ -2,9 +2,9 @@
 Classification of Motorcylcles Using Brand Information  with Image Processing Technique
 
 There's 4 Step of this project:
-1. Preprocessing the images
+1. Preprocessing the images(Adjust contrast and brightness)
 2. extract the feature of motorcycle in the image
-3. Training the data in to the ANNs and SVM
+3. Training the data using the ANNs and SVM(Including Calculation HOG-Histrogram of gradients)
 4. Compare and optimize the system
 
 # Brief the concept
