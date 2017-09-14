@@ -33,6 +33,8 @@ int video_preprocessing(String input_filename);
 string save_roi_file(Mat motorcycle_roi, int filenum);
 vector<Point> check_correct_tl_br(Point tl, Point br);
 vector<int> check_correct_w_h(Point tl_rect_roi, int width, int height);
+void calculate_gradient_image(Mat motorcycle_roi);
+
 
 
 /** Global variables */
@@ -42,6 +44,7 @@ String window_name = "Capture - Motorcycle Plate detection";
 String window_roi = "ROI - Motorcycle";
 String filename = "";
 int image_size_x = 640, image_size_y = 480;
+int image_size_export_x = 128, image_size_export_y = 256;
 int origin_point = 0;
 
 /** @function main */
@@ -258,6 +261,9 @@ void detect_save_display(Mat motorcycle_frame)
 		cout << "=====================================================================================" << endl;
 #endif
 
+		Size img_size(image_size_export_x, image_size_export_y);
+
+		resize(motorcycle_roi, motorcycle_roi, img_size);
 		saved_filename = save_roi_file(motorcycle_roi, (int)i+1);
 		
 		imshow(window_name, motorcycle_frame);
@@ -296,4 +302,23 @@ vector<int> check_correct_w_h(Point tl_rect_roi, int width, int height)
 		height = (height * 3) + 40;
 
 	return { width, height };
+}
+
+void calculate_gradient_image(Mat motorcycle_roi) {
+	//This function will take the image of roi and calculate the gradient 
+
+	/*Convert datatype form CV_8U to CV_32F (CV_32F is float - the pixel can have any value between 0-1.0, 
+	this is useful for some sets of calculations on data - but it has to be converted into 8bits 
+	to save or display by multiplying each pixel by 255.)
+	*/
+	motorcycle_roi.convertTo(motorcycle_roi, CV_32F, 1 / 255.0);
+
+	// Calculate gradients (gx, gy)
+	Mat gx, gy;
+	Sobel(motorcycle_roi, gx, CV_32F, 1, 0, 1);
+	Sobel(motorcycle_roi, gy, CV_32F, 0, 1, 1);
+	
+	// Calculate gradient magnitude and direction (in degrees)
+	Mat magnitude, angle;
+	cartToPolar(gx, gy, magnitude, angle, 1);
 }
