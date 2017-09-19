@@ -20,7 +20,8 @@
 #include <cstring>
 #include <string>
 
-#define DEBUG
+//#define DEBUG
+#define PROCESS
 
 using namespace std;
 using namespace cv;
@@ -28,12 +29,11 @@ using namespace cv;
 /** Function Headers */
 void detect_save_display(Mat motorcycle_frameame);
 string generate_filename(string filename, int filenum);
-int image_preprocessing(String input_filename);
-int video_preprocessing(String input_filename);
+int image_processing(String input_filename);
+int video_processing(String input_filename);
 string save_roi_file(Mat motorcycle_roi, int filenum);
 vector<Point> check_correct_tl_br(Point tl, Point br);
 vector<int> check_correct_w_h(Point tl_rect_roi, int width, int height);
-void calculate_gradient_image(Mat motorcycle_roi);
 
 
 
@@ -44,13 +44,12 @@ String window_name = "Capture - Motorcycle Plate detection";
 String window_roi = "ROI - Motorcycle";
 String filename = "";
 int image_size_x = 640, image_size_y = 480;
-int image_size_export_x = 128, image_size_export_y = 256;
+int image_size_export_x = 256, image_size_export_y = 512;
 int origin_point = 0;
 
 /** @function main */
 int main(int argc, char** argv)
 {
-	Mat motorcycle_roi;
 	int input_file_type = atoi(argv[1]);
 	String input_filename = argv[2];
 	//-- 1. Load the cascades
@@ -59,13 +58,15 @@ int main(int argc, char** argv)
 		return -1;
 	};
 	
+#ifdef DEBUG
 	//-- 2. Choose input method
 	cout << "Choose your input file type" << endl;
 	cout << "===========================" << endl;
 	cout << "1. Image" << endl;
 	cout << "2. Video" << endl;
 	cout << "You choose : " << argv[1] << endl;
-	
+#endif
+
 	filename += argv[2];
 	cout << argv[1] << endl;
 
@@ -74,25 +75,27 @@ int main(int argc, char** argv)
 	switch (input_file_type) {
 		case 1 :
 			cout << "Input file is image." << endl;
-			image_preprocessing(input_filename);
+			image_processing(input_filename);
 			break;
 		case 2 :
 			cout << "Input file is video." << endl;
-			video_preprocessing(input_filename);
+			video_processing(input_filename);
 			break;
 		default :
 			cout << "Unknown input file type" << endl;
 			break;
 	}
 	
+	#ifndef PROCESS
 	while (true) { 
 		if(waitKey(30) >= 0)
 			break;
 	}
+	#endif
 	return 0;
 }
 
-int video_preprocessing(String input_filename)
+int video_processing(String input_filename)
 {
 	VideoCapture capt_input_video(input_filename);
 	if (!capt_input_video.isOpened()) {
@@ -122,7 +125,7 @@ int video_preprocessing(String input_filename)
 	return 0;
 }
 
-int image_preprocessing(String input_filename)
+int image_processing(String input_filename)
 {
 	Mat motorcycle_roi;
 	Size img_size(image_size_x, image_size_y);
@@ -194,9 +197,14 @@ void detect_save_display(Mat motorcycle_frame)
 	//After use cascade dectection we get the ROI
 	//plates.size() is number of ROI		
 
-	cout << "We have : " << plates.size() << " plates." << endl;
-	cout << "=====================================================================================" << endl;
-	
+#ifdef PROCESS
+	if (plates.size() != 0) {
+		cout << "=====================================================================================" << endl;
+		cout << "Filename : " << filename << endl;
+		cout << "We have : " << plates.size() << " plates." << endl;
+		cout << "=====================================================================================" << endl;
+	}
+#endif
 	for (size_t i = 0; i < plates.size(); i++)
 	{
 		//Delete old Rectangle and draw it on a new image
@@ -214,10 +222,6 @@ void detect_save_display(Mat motorcycle_frame)
 		//Point tl_rect_roi(plates[i].x, plates[i].y);
 		//Point br_rect_roi(plates[i].x, plates[i].y);
 
-
-		Mat motorcycle_roi;
-
-
 		vector<Point> tl_br_corrected = check_correct_tl_br(tl_rect_roi, br_rect_roi);
 		tl_rect_roi = tl_br_corrected[0];
 		br_rect_roi = tl_br_corrected[1];
@@ -232,14 +236,17 @@ void detect_save_display(Mat motorcycle_frame)
 
 		//Rect roi(tl_rect_roi.x, tl_rect_roi.y, (plates[i].width), (plates[i].height));
 
+		//We Use tl(x,y) to draw and RoI and control size by using width and height
 		vector<int> width_height_corrected = check_correct_w_h(tl_rect_roi,	plates[i].width, plates[i].height);
 
 		//Rect roi(tl_rect_roi.x, tl_rect_roi.y, (plates[i].width * 3) + 30, (plates[i].height * 3) + 40);
 		Rect roi(tl_rect_roi.x, tl_rect_roi.y, width_height_corrected[0], width_height_corrected[1]);
+#ifdef DEBUG
 		cout << width_height_corrected[0] << " " << width_height_corrected[1] << endl;
+#endif
 		rectangle(motorcycle_frame, roi, Scalar(128, 128, 255), 2, 8, 0);
 
-
+		Mat motorcycle_roi;
 		motorcycle_roi = motorcycle_frame_original(roi);
 
 
@@ -267,14 +274,21 @@ void detect_save_display(Mat motorcycle_frame)
 		saved_filename = save_roi_file(motorcycle_roi, (int)i+1);
 		
 		imshow(window_name, motorcycle_frame);
-
 		//Display all ROI
 		#ifdef DEBUG
 			imshow(saved_filename, motorcycle_roi);
 		#endif
+
+		#ifdef PROCESS
+			if (plates.size() != 0) {
+				cout << "Filename : " << saved_filename << ".JPG" << endl;
+				cout << "==============================================================================" << endl;
+			}
+		#endif	
 	}
 	//-- Show the output (ROI that can detect on the image by using motorcylce_cascade.xml)
 	//imshow(window_name, motorcycle_frame_original);
+
 }
 
 vector<Point> check_correct_tl_br(Point tl, Point br) 
@@ -295,30 +309,12 @@ vector<int> check_correct_w_h(Point tl_rect_roi, int width, int height)
 		width = (width * 3) + 30;
 
 
-	//Height check and adjust into proper size
-	if ((height * 3) + 40 > image_size_y || tl_rect_roi.y + (width * 3) + 40 > image_size_y)
+
+	//Height check and adjust into proper size and auto get rid of license plate
+	if ((height * 2) + 40 > image_size_y || tl_rect_roi.y + (height) + 40 > image_size_y)
 		height = image_size_y - tl_rect_roi.y;
 	else
-		height = (height * 3) + 40;
+		height = (height) + 40;
 
 	return { width, height };
-}
-
-void calculate_gradient_image(Mat motorcycle_roi) {
-	//This function will take the image of roi and calculate the gradient 
-
-	/*Convert datatype form CV_8U to CV_32F (CV_32F is float - the pixel can have any value between 0-1.0, 
-	this is useful for some sets of calculations on data - but it has to be converted into 8bits 
-	to save or display by multiplying each pixel by 255.)
-	*/
-	motorcycle_roi.convertTo(motorcycle_roi, CV_32F, 1 / 255.0);
-
-	// Calculate gradients (gx, gy)
-	Mat gx, gy;
-	Sobel(motorcycle_roi, gx, CV_32F, 1, 0, 1);
-	Sobel(motorcycle_roi, gy, CV_32F, 0, 1, 1);
-	
-	// Calculate gradient magnitude and direction (in degrees)
-	Mat magnitude, angle;
-	cartToPolar(gx, gy, magnitude, angle, 1);
 }
