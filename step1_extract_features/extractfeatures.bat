@@ -1,6 +1,0 @@
-extract_features_from_images.exe 1 Yamaha_Meo_3.JPG
-extract_features_from_images.exe 1 Yamaha_Meo_2.JPG
-extract_features_from_images.exe 1 Yamaha_Meo_1.JPG
-extract_features_from_images.exe 1 Yamaha_Fino_1.JPG
-extract_features_from_images.exe 1 Yamaha_Fino_2.JPG
-extract_features_from_images.exe 1 Yamaha_Fino_3.JPG

@@ -44,8 +44,10 @@ String window_name = "Capture - Motorcycle Plate detection";
 String window_roi = "ROI - Motorcycle";
 String filename = "";
 int image_size_x = 640, image_size_y = 480;
-int image_size_export_x = 256, image_size_export_y = 512;
+int image_size_export_x = 128, image_size_export_y = 256;
 int origin_point = 0;
+int width_shift = 30;
+int height_shift = 25;
 
 /** @function main */
 int main(int argc, char** argv)
@@ -215,7 +217,7 @@ void detect_save_display(Mat motorcycle_frame)
 		//tl is top left corner
 		//br is bottom right corner
 
-		Point tl_rect_roi(plates[i].x - plates[i].width - 30, plates[i].y - plates[i].height - 40);
+		Point tl_rect_roi(plates[i].x - plates[i].width - width_shift, plates[i].y - plates[i].height - height_shift);
 		Point br_rect_roi(plates[i].x + (2 * plates[i].width), plates[i].y + (2 * plates[i].height));
 		cout << plates[i].size() << " " << plates[i].x << " " << plates[i].y << " " << plates[i].width << " " << 
 			plates[i].height << endl;
@@ -243,8 +245,9 @@ void detect_save_display(Mat motorcycle_frame)
 		Rect roi(tl_rect_roi.x, tl_rect_roi.y, width_height_corrected[0], width_height_corrected[1]);
 #ifdef DEBUG
 		cout << width_height_corrected[0] << " " << width_height_corrected[1] << endl;
-#endif
 		rectangle(motorcycle_frame, roi, Scalar(128, 128, 255), 2, 8, 0);
+
+#endif
 
 		Mat motorcycle_roi;
 		motorcycle_roi = motorcycle_frame_original(roi);
@@ -302,19 +305,21 @@ vector<Point> check_correct_tl_br(Point tl, Point br)
 
 vector<int> check_correct_w_h(Point tl_rect_roi, int width, int height)
 {
+	int width_shift = 30;
+	int height_shift = 25;
 	//Width check and adjust into proper size
-	if ((width * 3) + 30 > image_size_x || tl_rect_roi.x + (width * 3) + 30 > image_size_x)
+	if ((width * 3) + width_shift > image_size_x || tl_rect_roi.x + (width * 3) + width_shift > image_size_x)
 		width = image_size_x - tl_rect_roi.x;
 	else
-		width = (width * 3) + 30;
+		width = (width * 3) + width_shift;
 
 
 
 	//Height check and adjust into proper size and auto get rid of license plate
-	if ((height * 2) + 40 > image_size_y || tl_rect_roi.y + (height) + 40 > image_size_y)
+	if ((height * 2) + height_shift > image_size_y || tl_rect_roi.y + (height) + height_shift  > image_size_y)
 		height = image_size_y - tl_rect_roi.y;
 	else
-		height = (height) + 40;
+		height = (height) + height_shift;
 
 	return { width, height };
 }
