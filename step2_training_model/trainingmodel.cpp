@@ -1,6 +1,7 @@
 // trainingmodel.cpp : Defines the entry point for the console application.
-//
+//This program take image as an input and calculate the HoG for each block then visualize it.
 
+#define DEBUG
 #include "stdafx.h"
 
 #include "opencv2/opencv.hpp"
@@ -31,12 +32,19 @@ int main(int argc, char** argv)
 	Mat motorcycle_roi_hog_visual;
 	vector<float> hog_value_motorcycle_roi;
 	hog_value_motorcycle_roi = calculate_hog_image(motorcycle_roi);
-	motorcycle_roi_hog_visual = get_hogdescriptor_visual(motorcycle_roi, hog_value_motorcycle_roi, Size(128, 256));
+#ifdef DEBUG
+	for (int i = 0; i < hog_value_motorcycle_roi.size(); i++) {
+		cout << i << " : " <<hog_value_motorcycle_roi[i] << endl;
+	}
+#endif
+	motorcycle_roi_hog_visual = get_hogdescriptor_visual(motorcycle_roi, hog_value_motorcycle_roi, Size(64, 128));
 	imshow(window_name, motorcycle_roi_hog_visual);
+#ifdef DEBUG
 	while (true) {
 		if (waitKey(30) >= 0)
 			break;
 	}
+#endif
     return 0;
 }
 
@@ -67,10 +75,10 @@ vector<float> calculate_hog_image(Mat motorcycle_roi)
 	cvtColor(motorcycle_roi, motorcycle_roi_grey, COLOR_BGR2GRAY);
 	vector<float> hog_descriptors_value;
 	HOGDescriptor hog_descriptor(
-		Size(128, 256), //winSize
-		Size(8, 8), //blocksize
-		Size(4, 4), //blockStride,
-		Size(4, 4), //cellSize,
+		Size(64, 128), //winSize
+		Size(16, 16), //blocksize
+		Size(8, 8), //blockStride,
+		Size(8, 8), //cellSize,
 		9, //nbins,
 		1, //derivAper,
 		-1, //winSigma,
@@ -78,7 +86,7 @@ vector<float> calculate_hog_image(Mat motorcycle_roi)
 		0.2, //L2HysThresh,
 		1,//gammal correction,
 		64,//nlevels=64
-		1);//Use signed gradients 
+		0);//Use signed gradients 
 
 	hog_descriptor.compute(motorcycle_roi_grey, hog_descriptors_value);
 	cout << "HOG 's size : " << hog_descriptors_value.size() << endl;

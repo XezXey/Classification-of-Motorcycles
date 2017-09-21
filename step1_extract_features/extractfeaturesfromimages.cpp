@@ -44,7 +44,7 @@ String window_name = "Capture - Motorcycle Plate detection";
 String window_roi = "ROI - Motorcycle";
 String filename = "";
 int image_size_x = 640, image_size_y = 480;
-int image_size_export_x = 128, image_size_export_y = 256;
+int image_size_export_x = 64, image_size_export_y = 128;
 int origin_point = 0;
 int width_shift = 30;
 int height_shift = 25;
