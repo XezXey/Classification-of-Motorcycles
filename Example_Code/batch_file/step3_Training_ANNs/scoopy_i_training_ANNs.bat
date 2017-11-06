@@ -1,0 +1,1 @@
+training_ANNs.exe -in scoopy_i_hog_value_for_train.txt -out scoopyi_output_ANNs.txt -save scoopymodel.xml -samples 31 -in_attributes 3780 -out_attributes 3

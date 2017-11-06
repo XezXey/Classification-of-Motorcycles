@@ -1,0 +1,1 @@
+training_ANNs.exe -in wave_hog_value_for_train.txt -out wave_output_ANNs.txt -save wavemodel.xml -samples 155 -in_attributes 3780 -out_attributes 3

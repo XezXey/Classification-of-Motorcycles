@@ -1,0 +1,15 @@
+finding_hog_features.exe ".\data_set_phase1_5_11_2560\fino\fino_roi\fino_16_plate_1.JPG" fino_
+finding_hog_features.exe ".\data_set_phase1_5_11_2560\fino\fino_roi\fino_17_plate_1.JPG" fino_
+finding_hog_features.exe ".\data_set_phase1_5_11_2560\fino\fino_roi\fino_17_plate_2.JPG" fino_
+finding_hog_features.exe ".\data_set_phase1_5_11_2560\fino\fino_roi\fino_18_plate_1.JPG" fino_
+finding_hog_features.exe ".\data_set_phase1_5_11_2560\fino\fino_roi\fino_19_plate_1.JPG" fino_
+finding_hog_features.exe ".\data_set_phase1_5_11_2560\fino\fino_roi\fino_20_plate_1.JPG" fino_
+finding_hog_features.exe ".\data_set_phase1_5_11_2560\fino\fino_roi\fino_21_plate_1.JPG" fino_
+finding_hog_features.exe ".\data_set_phase1_5_11_2560\fino\fino_roi\fino_22_plate_1.JPG" fino_
+finding_hog_features.exe ".\data_set_phase1_5_11_2560\fino\fino_roi\fino_23_plate_1.JPG" fino_
+finding_hog_features.exe ".\data_set_phase1_5_11_2560\fino\fino_roi\fino_2_plate_1.JPG" fino_
+finding_hog_features.exe ".\data_set_phase1_5_11_2560\fino\fino_roi\fino_5_plate_1.JPG" fino_
+finding_hog_features.exe ".\data_set_phase1_5_11_2560\fino\fino_roi\fino_5_plate_3.JPG" fino_
+finding_hog_features.exe ".\data_set_phase1_5_11_2560\fino\fino_roi\fino_6_plate_1.JPG" fino_
+finding_hog_features.exe ".\data_set_phase1_5_11_2560\fino\fino_roi\fino_8_plate_1.JPG" fino_
+finding_hog_features.exe ".\data_set_phase1_5_11_2560\fino\fino_roi\fino_8_plate_2.JPG" fino_

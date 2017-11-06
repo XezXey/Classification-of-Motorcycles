@@ -1,0 +1,1 @@
+training_ANNs.exe -in fino_hog_value_for_train.txt -out fino_output_ANNs.txt -save finomodel.xml -samples 15 -in_attributes 3780 -out_attributes 3
