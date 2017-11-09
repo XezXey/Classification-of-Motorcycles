@@ -2,7 +2,7 @@
 
 #include "stdafx.h"
 
-#include "opencv2/opencv.hpp"
+#include <opencv2/opencv.hpp>
 #include <windows.h>
 #include <iostream>
 #include <fstream>
@@ -18,23 +18,22 @@ using namespace cv::ml;
 // global definitions (for speed and ease of use)
 
 #define NUMBER_OF_TRAINING_SAMPLES 797
-#define ATTRIBUTES_PER_SAMPLE 256
+#define ATTRIBUTES_PER_SAMPLE 3780
 #define NUMBER_OF_TESTING_SAMPLES 796
-#define NUMBER_OF_CLASSES 10
+#define NUMBER_OF_CLASSES 3
 
-// N.B. classes are integer handwritten digits in range 0-9
 
 /******************************************************************************/
-// loads the sample database from file (which is a CSV text file)
-int read_data_from_csv(const char* filename, Mat data, int n_samples, int n_samples_attributes)
+// loads the sample database from file (which is a CSV text file)	==> CSV is Comma Separate Value
+int read_data_from_file(const char* filename, Mat data, int n_samples, int n_samples_attributes)
 {
-	float tmpf;
+	float read_value_temp;	//For storing each value from CSV file
 	// if we can't read the input file then return 0
-	FILE* f = fopen(filename, "r");
-	if (!f)
+	FILE* fstream = fopen(filename, "r");
+	if (!fstream)
 	{
-		printf("ERROR: cannot read file %s\n", filename);
-		return 0; // all not OK
+		printf("ERROR: cannot read file : %s\n", filename);
+		return 0; // Cannot read file.
 	}
 
 	// for each sample in the file
@@ -46,21 +45,19 @@ int read_data_from_csv(const char* filename, Mat data, int n_samples, int n_samp
 		{
 
 			// first 256 elements (0-255) in each line are the attributes
-			fscanf_s(f, "%f,", &tmpf);
-			data.at<float>(line, attribute) = tmpf;
+			fscanf_s(fstream, "%f,", &read_value_temp);
+			data.at<float>(line, attribute) = read_value_temp;
 		}
-		fscanf_s(f, "\n");
+		fscanf_s(fstream, "\n");
 	}
 
-	fclose(f);
+	fclose(fstream);
 
-	return 1; // all OK
+	return 1; // Reading value from file process is OK.
 }
 
 // This function reads data and responses from the file <filename>
-static bool
-read_num_class_data(const string& filename, int var_count,
-	Mat* _data, Mat* _responses)
+static bool read_num_class_data(const string& filename, int var_count, Mat* _data, Mat* _responses)
 {
 	const int M = 1024;
 	char buf[M + 2];
@@ -104,15 +101,14 @@ read_num_class_data(const string& filename, int var_count,
 	return true;
 }
 
-template<typename T>
-static Ptr<T> load_classifier(const string& filename_to_load)
+template<typename T> static Ptr<T> load_classifier(const string& filename_to_load)
 {
 	// load classifier from the specified file
 	Ptr<T> model = StatModel::load<T>(filename_to_load);
 	if (model.empty())
 		cout << "Could not read the classifier " << filename_to_load << endl;
 	else
-		cout << "The classifier " << filename_to_load << " is loaded.\n";
+		cout << "The classifier " << filename_to_load << " is loaded\n";
 
 	return model;
 }
@@ -122,177 +118,164 @@ inline TermCriteria TC(int iters, double eps)
 	return TermCriteria(TermCriteria::MAX_ITER + (eps > 0 ? TermCriteria::EPS : 0), iters, eps);
 }
 
-static void test_and_save_classifier(const Ptr<StatModel>& model,
-	const Mat& data, const Mat& responses,
-	int ntrain_samples,
-	const string& filename_to_save)
-{
-	int i, nsamples_all = data.rows;
-	double train_hr = 0, test_hr = 0;
-
-	Ptr<ANN_MLP> test_model = load_classifier<ANN_MLP>(filename_to_save);
-	if (test_model.empty())
-		return;
-
-	// compute prediction error on train and test data
-	int correct = 0;
-	for (i = 0; i < nsamples_all; i++)
-	{
-		Mat sample = data.row(i);
-		Mat predict(1, 10, CV_32F);
-		float r = test_model->predict(sample, predict);
-
-		float max = predict.at<float>(0, 0);
-		int max_i = 0;
-		for (int j = 1; j<10; j++)
-		{
-			if (predict.at<float>(0, j) > max)
-			{
-				max = predict.at<float>(0, j);
-				max_i = j;
-			}
-		}
-
-		if (responses.at<float>(i, max_i) == 1.0)
-		{
-			correct++;
-		}
-	}
-
-	printf("CORRECT = %.2f\n", correct / (float)nsamples_all);
-}
-
-
-static int build_mlp_classifier(const string& data_in_filename,
-	const string& data_out_filename,
-	const string& filename_to_save,
-	const string& filename_to_load,
-	int samples,
-	int in_attributes,
+static int build_mlp_classifier(const string& data_in_filename, 
+	const string& data_out_filename, 
+	const string& filename_to_save, 
+	const string& filename_to_load, 
+	int n_samples, 
+	int in_attributes, 
 	int out_attributes)
 {
-	Mat data(samples, in_attributes, CV_32F);
-	Mat responses(samples, out_attributes, CV_32F);
 
-	bool ok1 = read_data_from_csv(data_in_filename.c_str(), data, samples, in_attributes);
-	bool ok2 = read_data_from_csv(data_out_filename.c_str(), responses, samples, out_attributes);
-	if (!ok1 || !ok2)
+	Mat data(n_samples, in_attributes, CV_32F);
+	Mat responses(n_samples, out_attributes, CV_32F);
+
+	//Reading data from file both of input and output file
+	bool input_file_load_status = read_data_from_file(data_in_filename.c_str(), data, n_samples, in_attributes);
+	bool output_file_load_status = read_data_from_file(data_out_filename.c_str(), responses, n_samples, out_attributes);
+	if (!input_file_load_status || !output_file_load_status) {	//Cannot Load input or output file
 		return -1;
+	}
 
 	Ptr<ANN_MLP> model;
-
+	
 	int nsamples_all = data.rows;
 	int ntrain_samples = (int)(nsamples_all*1.0);
 
-	// Create or load MLP classifier
+	// Load MLP classifier for re-training it.
 	if (!filename_to_load.empty())
 	{
 		model = load_classifier<ANN_MLP>(filename_to_load);
 		if (model.empty())
+			cout << "Cannot Load ANNs Model for re-training." << endl;
 			return false;
-		ntrain_samples = 0;
 	}
-	else
+	
+	//Trainig Process
+	// 1. unroll the responses and data
+	Mat train_data = data.rowRange(0, ntrain_samples);
+	Mat train_responses = responses.rowRange(0, ntrain_samples);
+
+
+	// 2. Adjust the classifier settings
+	int nlayers = 3;
+	vector<int> layer_Size = { in_attributes, 2, out_attributes };	
+	/*
+	Each value represent to number of neuron in each layer
+	1.First is Input Layer.
+	2.Middles is Hidden Layer.
+	3.Last is Output Layer
+	*/
+	int method_RPROP = 1;		//Training method is RPROP = faster backpropagation
+	double method_param = 0.001;	//
+	int max_iter = 3000;
+
+	//Training Data 
+	Ptr<TrainData> trainData = TrainData::create(train_data, ROW_SAMPLE, train_responses);
+
+	model = ANN_MLP::create();
+	model->setLayerSizes(layer_Size);
+	model->setTrainMethod(method_RPROP, method_param);
+	model->setActivationFunction(ANN_MLP::SIGMOID_SYM, 1, 1);
+	model->setTermCriteria(TC(max_iter, 0));
+
+	//3.Train the network.
+	cout << "Training the classifier (may take a few minutes)..." << endl;;
+	model->train(trainData);
+
+	//Save trained model
+	if (!filename_to_save.empty())
 	{
-		// 1. unroll the responses
-
-		Mat train_data = data.rowRange(0, ntrain_samples);
-		Mat train_responses = responses.rowRange(0, ntrain_samples);
-
-		// 2. train classifier
-		int layer_sz[] = { in_attributes, 15, out_attributes };
-		int nlayers = (int)(sizeof(layer_sz) / sizeof(layer_sz[0]));
-		Mat layer_sizes(1, nlayers, CV_32S, layer_sz);
-
-		int method_RPROP = 1;		//Training method is RPROP = faster backpropagation
-		double method_param = 0.001;	//
-		int max_iter = 3000;
-
-		Ptr<TrainData> tdata = TrainData::create(train_data, ROW_SAMPLE, train_responses);
-
-		cout << "Training the classifier (may take a few minutes)...\n";
-		model = ANN_MLP::create();
-		/*
-		ANN_MLP::Params p(layer_sizes, ANN_MLP::SIGMOID_SYM, 0, 0, TC(max_iter, 0), method, method_param);
-		model->setParams(p);
-		*/
-		model->setLayerSizes(layer_sizes);
-		model->setTrainMethod(method_RPROP, method_param);
-		model->setActivationFunction(ANN_MLP::SIGMOID_SYM, 0, 0);
-		model->setTermCriteria(TC(max_iter, 0));
-
-
-		model->train(tdata);
-		cout << endl;
-
-		if (!filename_to_save.empty())
-		{
-			model->save(filename_to_save);
-		}
+		model->save(filename_to_save);
 	}
-
-	test_and_save_classifier(model, data, responses, ntrain_samples, filename_to_save);
 
 	return true;
 }
 
-
 /******************************************************************************/
+void ANNs_display(void) {
+	cout << "***********************************************************************************" << endl;
+	cout << "    _____          _       _                      _    _   _ _   _        " << endl;
+	cout << "   |_   _| __ __ _(_)_ __ (_)_ __   __ _   _     / \\  | \\ | | \\ | |___    " << endl;
+	cout << "     | || '__/ _` | | '_ \\| | '_ \\ / _` | (_)   / _ \\ |  \\| |  \\| / __|   " << endl;
+	cout << "     | || | | (_| | | | | | | | | | (_| |  _   / ___ \\| |\\  | |\\  \\__ \\   " << endl;
+	cout << "     |_||_|  \\__,_|_|_| |_|_|_| |_|\\__, | (_) /_/   \\_\\_| \\_|_| \\_|___/   " << endl;
+	cout << "                                   |___/                                  " << endl;
+	cout << "***********************************************************************************" << endl;
+}
 
 int main(int argc, char** argv)
 {
 	string filename_to_save = "";
 	string filename_to_load = "";
-	string data_in_filename = "../data/letter-recognition.data";
-	string data_out_filename = "../data/letter-recognition.data";
+	string data_in_filename = "";
+	string data_out_filename = "";
+
 	int method = 0;
-	int samples = 0;
+	int n_samples = 0;
 	int in_attributes = 0;
 	int out_attributes = 0;
 
-	int i;
-	for (i = 1; i < argc; i++)
+	ANNs_display();
+	cout << endl << endl << "Parameter for Training the network" << endl;;
+	for (int i = 1; i < argc; i++)
 	{
-		if (strcmp(argv[i], "-in") == 0) // flag "-data letter_recognition.xml"
+		if (strcmp(argv[i], "-in") == 0) // flag "-in <input_csv_file>.txt"
 		{
 			i++;
 			data_in_filename = argv[i];
+			cout << "	Input_data_filename : " << data_in_filename << endl;
 		}
-		if (strcmp(argv[i], "-out") == 0) // flag "-data letter_recognition.xml"
+		else if (strcmp(argv[i], "-out") == 0) // flag "-out <output_csv_file>.txt"
 		{
 			i++;
 			data_out_filename = argv[i];
+			cout << "	Output_data_filename : " << data_out_filename << endl;
+
 		}
-		else if (strcmp(argv[i], "-save") == 0) // flag "-save filename.xml"
+		else if (strcmp(argv[i], "-save") == 0) // flag "-save <model_name>.xml"
 		{
 			i++;
 			filename_to_save = argv[i];
+			cout << "	Save to filename : " << filename_to_save << endl;
 		}
-		else if (strcmp(argv[i], "-load") == 0) // flag "-load filename.xml"
+		else if (strcmp(argv[i], "-load") == 0) // flag "-load <model_name>.xml"
 		{
 			i++;
 			filename_to_load = argv[i];
+			cout << "	Load from filename : " << filename_to_load << endl;
 		}
-		else if (strcmp(argv[i], "-samples") == 0) // flag "-load filename.xml"
+		else if (strcmp(argv[i], "-samples") == 0) // flag "-samples <number_of_samples>"
 		{
 			i++;
-			samples = atoi(argv[i]);
+			n_samples = atoi(argv[i]);
+			cout << "	Number of Samepls : " << n_samples << endl;
 		}
-		else if (strcmp(argv[i], "-in_attributes") == 0) // flag "-load filename.xml"
+		else if (strcmp(argv[i], "-in_attributes") == 0) // flag "-in_attributes <number_of_input_attributes_of_training_data>"
 		{
 			i++;
 			in_attributes = atoi(argv[i]);
+			cout << "	Number of Input's Attributes : " << in_attributes << endl;
 		}
-		else if (strcmp(argv[i], "-out_attributes") == 0) // flag "-load filename.xml"
+		else if (strcmp(argv[i], "-out_attributes") == 0) // flag "-out_attributes <number_of_output_attributes_of_training_data>"
 		{
 			i++;
 			out_attributes = atoi(argv[i]);
+			cout << "	Number of Output's Attributes : " << out_attributes << endl;
 		}
 	}
 
-	printf("argv1: %s, argv2: %s, argv3: %s, argv4: %s, argv5: %d, argv6: %d, argv7: %d\n", data_in_filename.c_str(), data_out_filename.c_str(), filename_to_save.c_str(), filename_to_load.c_str(), samples, in_attributes, out_attributes);
+	//printf("argv1: %s, argv2: %s, argv3: %s, argv4: %s, argv5: %d, argv6: %d, argv7: %d\n", data_in_filename.c_str(), data_out_filename.c_str(), filename_to_save.c_str(), filename_to_load.c_str(), samples, in_attributes, out_attributes);
 
-	build_mlp_classifier(data_in_filename, data_out_filename, filename_to_save, filename_to_load, samples, in_attributes, out_attributes);
-
-	return -1;
+	cout << "********************************************************************************************" << endl;
+	if (build_mlp_classifier(data_in_filename, data_out_filename, filename_to_save, filename_to_load, n_samples, in_attributes, out_attributes)) {
+		cout << "Result ===> POOf, Training the network Succesfully!!!" << endl;
+		getchar();
+		return 0;
+	}
+	else {
+		cout << "Result ===> Crash, Training the Network is not complete." << endl;
+		getchar();
+		return -1;
+	}
 }

@@ -1,7 +1,5 @@
 //Predicting the Neural Networks
 
-
-
 #include "stdafx.h"
 
 #include <opencv2/opencv.hpp>
@@ -18,42 +16,39 @@ using namespace std;
 using namespace ml;
 
 // loads the sample database from file (which is a CSV text file)
-int read_data_from_csv(const char* filename, Mat data, int n_samples, int n_samples_attributes)
+int read_data_from_file(const char* filename, Mat data, int n_samples, int n_samples_attributes)
 {
-	float tmpf;
-
-	// if we can't read the input file then return 0
-	FILE* f = fopen(filename, "r");
-	if (!f)
+	float read_value_temp;	//For storing each value from CSV file
+							// if we can't read the input file then return 0
+	FILE* fstream = fopen(filename, "r");
+	if (!fstream)
 	{
-		printf("ERROR: cannot read file %s\n", filename);
-		return 0; // all not OK
+		printf("ERROR: cannot read file : %s\n", filename);
+		return 0; // Cannot read file.
 	}
 
 	// for each sample in the file
-
 	for (int line = 0; line < n_samples; line++)
 	{
 
 		// for each attribute on the line in the file
-
 		for (int attribute = 0; attribute < n_samples_attributes; attribute++)
 		{
 
 			// first 256 elements (0-255) in each line are the attributes
-			fscanf_s(f, "%f,", &tmpf);
-			data.at<float>(line, attribute) = tmpf;
+			fscanf_s(fstream, "%f,", &read_value_temp);
+			data.at<float>(line, attribute) = read_value_temp;
 		}
+		fscanf_s(fstream, "\n");
 	}
 
-	fclose(f);
+	fclose(fstream);
 
-	return 1; // all OK
+	return 1; // Reading value from file process is OK.
 }
 
 // This function reads data and responses from the file <filename>
-static bool read_num_class_data(const string& filename, int var_count,
-	Mat* _data, Mat* _responses)
+static bool read_num_class_data(const string& filename, int var_count, Mat* _data, Mat* _responses)
 {
 	const int M = 1024;
 	char buf[M + 2];
@@ -97,8 +92,7 @@ static bool read_num_class_data(const string& filename, int var_count,
 	return true;
 }
 
-template<typename T>
-static Ptr<T> load_classifier(const string& filename_to_load)
+template<typename T> static Ptr<T> load_classifier(const string& filename_to_load)
 {
 	// load classifier from the specified file
 	Ptr<T> model = StatModel::load<T>(filename_to_load);
@@ -115,21 +109,19 @@ inline TermCriteria TC(int iters, double eps)
 	return TermCriteria(TermCriteria::MAX_ITER + (eps > 0 ? TermCriteria::EPS : 0), iters, eps);
 }
 
-static void test_and_save_classifier(const Ptr<StatModel>& model,
-	const Mat& data, const Mat& responses,
-	int ntrain_samples, int rdelta,
-	const string& filename_to_save)
+static void classifier_predict(const Ptr<StatModel>& model, const Mat& data, const Mat& responses, int ntrain_samples, int rdelta)
 {
 	int i, nsamples_all = data.rows;
 	double train_hr = 0, test_hr = 0;
 
+	cout << "nsamples_all = " << nsamples_all << endl;
 	// compute prediction error on train and test data
 	for (i = 0; i < nsamples_all; i++)
 	{
 		Mat sample = data.row(i);
 
 		float r = model->predict(sample);
-		printf("%f\n", r);
+		printf("Each_Predict_Result = %f\n", r);
 		r = std::abs(r + rdelta - responses.at<int>(i)) <= FLT_EPSILON ? 1.f : 0.f;
 		if (i < ntrain_samples)
 			train_hr += r;
@@ -140,52 +132,40 @@ static void test_and_save_classifier(const Ptr<StatModel>& model,
 	test_hr /= nsamples_all - ntrain_samples;
 	train_hr = ntrain_samples > 0 ? train_hr / ntrain_samples : 1.;
 
-	printf("Recognition rate: train = %.1f%%, test = %.1f%%\n",
-		train_hr*100., test_hr*100.);
-
-	if (!filename_to_save.empty())
-	{
-		model->save(filename_to_save);
-	}
+	printf("Recognition rate: train = %.1f%%, test = %.1f%%\n", train_hr*100., test_hr*100.);
 }
 
 
-static int build_mlp_classifier(const string& data_in_filename,
+static int load_mlp_classifier(const string& data_in_filename,
 	const string& data_out_filename,
 	const string& filename_to_save,
 	const string& filename_to_load,
-	int samples,
+	int n_samples,
 	int in_attributes,
 	int out_attributes)
 {
-	Mat data(samples, in_attributes, CV_32F);
-	Mat responses(samples, out_attributes, CV_32F);
-
-	bool ok1 = read_data_from_csv(data_in_filename.c_str(), data, samples, in_attributes);
-	bool ok2 = read_data_from_csv(data_out_filename.c_str(), responses, samples, out_attributes);
-	if (!ok1 || !ok2)
+	Mat data(n_samples, in_attributes, CV_32F);
+	Mat responses(n_samples, out_attributes, CV_32F);
+	
+	//Reading data from file both of input and output file
+	bool input_file_load_status = read_data_from_file(data_in_filename.c_str(), data, n_samples, in_attributes);
+	bool output_file_load_status = read_data_from_file(data_out_filename.c_str(), responses, n_samples, out_attributes);
+	if (!input_file_load_status || !output_file_load_status) {	//Cannot Load input or output file
 		return -1;
+	}
 
 	Ptr<ANN_MLP> model;
 
 	int nsamples_all = data.rows;
 	int ntrain_samples = (int)(nsamples_all*1.0);
 
-	// Create or load MLP classifier
+	// Load MLP classifier
 	if (!filename_to_load.empty())
 	{
 		model = load_classifier<ANN_MLP>(filename_to_load);
-		if (model.empty()) {
-			cout << "Cannot load an ANNs model." << endl;
-			return false;
-
-		}
-			return false;
-		ntrain_samples = 0;
+		classifier_predict(model, data, responses, ntrain_samples, 'A');
 	}
-	else{
-		test_and_save_classifier(model, data, responses, ntrain_samples, 'A', filename_to_save);
-	}
+	
 	return true;
 }
 
@@ -196,8 +176,8 @@ int main(int argc, char** argv)
 {
 	string filename_to_save = "";
 	string filename_to_load = "";
-	string data_in_filename = "../data/letter-recognition.data";
-	string data_out_filename = "../data/letter-recognition.data";
+	string data_in_filename = "";
+	string data_out_filename = "";
 	int method = 0;
 	int samples = 0;
 	int in_attributes = 0;
@@ -245,7 +225,7 @@ int main(int argc, char** argv)
 
 	printf("argv1: %s, argv2: %s, argv3: %s, argv4: %s, argv5: %d, argv6: %d, argv7: %d\n", data_in_filename.c_str(), data_out_filename.c_str(), filename_to_save.c_str(), filename_to_load.c_str(), samples, in_attributes, out_attributes);
 
-	build_mlp_classifier(data_in_filename, data_out_filename, filename_to_save, filename_to_load, samples, in_attributes, out_attributes);
+	load_mlp_classifier(data_in_filename, data_out_filename, filename_to_save, filename_to_load, samples, in_attributes, out_attributes);
 
 	return -1;
 }
