@@ -111,28 +111,48 @@ inline TermCriteria TC(int iters, double eps)
 
 static void classifier_predict(const Ptr<StatModel>& model, const Mat& data, const Mat& responses, int ntrain_samples, int rdelta)
 {
-	int i, nsamples_all = data.rows;
+	Mat _responses = responses;
+	int j,i, nsamples_all = data.rows;
 	double train_hr = 0, test_hr = 0;
-
+	float r;
+	int true_positive = 0;
 	cout << "nsamples_all = " << nsamples_all << endl;
 	// compute prediction error on train and test data
 	for (i = 0; i < nsamples_all; i++)
 	{
 		Mat sample = data.row(i);
 
-		float r = model->predict(sample);
-		printf("Each_Predict_Result = %f\n", r);
-		r = std::abs(r + rdelta - responses.at<int>(i)) <= FLT_EPSILON ? 1.f : 0.f;
-		if (i < ntrain_samples)
+
+		for (int j = 0; j < 3; j++) {
+			r = model->predict(sample, responses);
+			r = abs(1 - responses.at<float>(i, j)) <= 0.1 ? 1.f : 0.f;
+			cout << "R per Responses : " << r << endl;
+			//cout << "OK1 : " << ((r - 1) <= FLT_EPSILON) << endl;
+			//cout << "OK2 : " << (r - _responses.at<float>(i, j) <= 0.1) << endl;
+			bool OK1 = (abs(r - 1) <= FLT_EPSILON);
+			bool OK2 = abs(r - _responses.at<float>(i, j) <= 0.1) ? true:false;
+			cout << "OK1 : " << OK1 << endl;
+			cout << "OK2 : " << OK2 << endl;
+
+			if (OK1 && OK2) {
+				true_positive++;
+			}
+		}
+		if (i < ntrain_samples) {
 			train_hr += r;
-		else
 			test_hr += r;
+		}
+
+
+		cout << "Test_hr : " << test_hr << endl;
+		test_hr /= nsamples_all - ntrain_samples;
+		cout << "Test_hr : " << test_hr << endl;
+		train_hr = ntrain_samples > 0 ? train_hr / ntrain_samples : 1.;
 	}
-
-	test_hr /= nsamples_all - ntrain_samples;
-	train_hr = ntrain_samples > 0 ? train_hr / ntrain_samples : 1.;
-
+	cout << "Result : " << responses << endl;
 	printf("Recognition rate: train = %.1f%%, test = %.1f%%\n", train_hr*100., test_hr*100.);
+	printf("Predict : %d%%", true_positive * 100);
+
 }
 
 
@@ -172,6 +192,16 @@ static int load_mlp_classifier(const string& data_in_filename,
 
 /******************************************************************************/
 
+void Predict_ANNs_display(void) {
+	cout << "***********************************************************************************" << endl;
+	cout << "  ____		       _ _      _            _    _   _ _   _" << endl;
+	cout << " |  _ \\ _  __ ___  __ | (_) ___| |_   _     / \\  | \\ | | \\ | |___ " << endl;
+	cout << " | |_) |  '__/ _ \\ / _` | |/ __| __| (_)   / _ \\ |  \\| |  \\| / __| " << endl;
+	cout << " |  __/|  | |  __/  (_| | | (__| |_   _   / ___ \\| |\\  | |\\  \\__ \\ " << endl;
+	cout << " |_|   |_ |  \\___ |\\__,_|_|\\___|\\__| (_) /_/   \\_\\_| \\_|_| \\_|___/ " << endl;
+	cout << "***********************************************************************************" << endl;
+}
+
 int main(int argc, char** argv)
 {
 	string filename_to_save = "";
@@ -182,6 +212,8 @@ int main(int argc, char** argv)
 	int samples = 0;
 	int in_attributes = 0;
 	int out_attributes = 0;
+
+	Predict_ANNs_display();
 
 	int i;
 	for (i = 1; i < argc; i++)
