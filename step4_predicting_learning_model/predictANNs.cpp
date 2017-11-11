@@ -109,52 +109,46 @@ inline TermCriteria TC(int iters, double eps)
 	return TermCriteria(TermCriteria::MAX_ITER + (eps > 0 ? TermCriteria::EPS : 0), iters, eps);
 }
 
-static void classifier_predict(const Ptr<StatModel>& model, const Mat& data, const Mat& responses, int ntrain_samples, int rdelta)
+static void classifier_predict(const Ptr<StatModel>& model, const Mat& data, const Mat& responses, int n_samples, int out_attributes)
 {
-	Mat _responses = responses;
-	int j,i, nsamples_all = data.rows;
-	double train_hr = 0, test_hr = 0;
-	float r;
+	Mat expected_responses;
+	responses.copyTo(expected_responses);
+
+	Mat result_responses_onehot = Mat::zeros(n_samples, out_attributes, CV_32F);
+	Mat result_responses_non_onehot = Mat::zeros(n_samples, out_attributes, CV_32F);
+
+	int nsamples_all = data.rows;
 	int true_positive = 0;
-	cout << "nsamples_all = " << nsamples_all << endl;
+
 	// compute prediction error on train and test data
-	for (i = 0; i < nsamples_all; i++)
+	for (int i = 0; i < nsamples_all; i++)
 	{
-		Mat sample = data.row(i);
+		model->predict(data.row(i), result_responses_non_onehot.row(i));	//predict for each samples
 
-
-		for (int j = 0; j < 3; j++) {
-			r = model->predict(sample, responses);
-			r = abs(1 - responses.at<float>(i, j)) <= 0.1 ? 1.f : 0.f;
-			cout << "R per Responses : " << r << endl;
-			//cout << "OK1 : " << ((r - 1) <= FLT_EPSILON) << endl;
-			//cout << "OK2 : " << (r - _responses.at<float>(i, j) <= 0.1) << endl;
-			bool OK1 = (abs(r - 1) <= FLT_EPSILON);
-			bool OK2 = abs(r - _responses.at<float>(i, j) <= 0.1) ? true:false;
-			cout << "OK1 : " << OK1 << endl;
-			cout << "OK2 : " << OK2 << endl;
-
-			if (OK1 && OK2) {
-				true_positive++;
-			}
+		for (int j = 0; j < out_attributes; j++) {
+			//convert to onehot
+			result_responses_onehot.at<float>(i,j) = abs(1 - result_responses_non_onehot.at<float>(i, j)) <= 0.1 ? 1.f : 0.f;
 		}
-		if (i < ntrain_samples) {
-			train_hr += r;
-			test_hr += r;
+		//compare(result_responses_onehot.row(i), expected_responses.row(i), suck, CMP_EQ);
+
+		if (result_responses_onehot.at<float>(i, 0) == expected_responses.at<float>(i, 0) && result_responses_onehot.at<float>(i, 1) == expected_responses.at<float>(i, 1)
+			&& result_responses_onehot.at<float>(i, 1) == expected_responses.at<float>(i, 1)) {
+			true_positive++;
 		}
 
-
-		cout << "Test_hr : " << test_hr << endl;
-		test_hr /= nsamples_all - ntrain_samples;
-		cout << "Test_hr : " << test_hr << endl;
-		train_hr = ntrain_samples > 0 ? train_hr / ntrain_samples : 1.;
+		//cout << result_responses_onehot.at<float>(i) << " : EQUAL TO : " << expected_responses.at<float>(i) << endl;
 	}
-	cout << "Result : " << responses << endl;
-	printf("Recognition rate: train = %.1f%%, test = %.1f%%\n", train_hr*100., test_hr*100.);
-	printf("Predict : %d%%", true_positive * 100);
+
+
+	cout << "******************************************Predicting Result******************************************" << endl;
+	cout << "Expected : " << endl << expected_responses << endl << endl;
+	cout << "Result by not using Red-Hot : " << endl  << result_responses_non_onehot << endl << endl;
+	cout << "Result by using Red_Hot : " << endl << result_responses_onehot << endl << endl;
+	cout << "========> Predict Corrected : " << (true_positive * 100) / nsamples_all << "%" << endl;
+	cout << "*****************************************************************************************************" << endl;
 
 }
-
+//*100 / ntrain_samples
 
 static int load_mlp_classifier(const string& data_in_filename,
 	const string& data_out_filename,
@@ -177,13 +171,12 @@ static int load_mlp_classifier(const string& data_in_filename,
 	Ptr<ANN_MLP> model;
 
 	int nsamples_all = data.rows;
-	int ntrain_samples = (int)(nsamples_all*1.0);
 
 	// Load MLP classifier
 	if (!filename_to_load.empty())
 	{
 		model = load_classifier<ANN_MLP>(filename_to_load);
-		classifier_predict(model, data, responses, ntrain_samples, 'A');
+		classifier_predict(model, data, responses, nsamples_all, out_attributes);
 	}
 	
 	return true;
@@ -209,55 +202,63 @@ int main(int argc, char** argv)
 	string data_in_filename = "";
 	string data_out_filename = "";
 	int method = 0;
-	int samples = 0;
+	int n_samples = 0;
 	int in_attributes = 0;
 	int out_attributes = 0;
 
 	Predict_ANNs_display();
 
 	int i;
-	for (i = 1; i < argc; i++)
+	cout << endl << "Parameter for Testing the network" << endl;;
+	for (int i = 1; i < argc; i++)
 	{
-		if (strcmp(argv[i], "-in") == 0) // flag "-data letter_recognition.xml"
+		if (strcmp(argv[i], "-in") == 0) // flag "-in <input_csv_file>.txt"
 		{
 			i++;
 			data_in_filename = argv[i];
+			cout << "	Input_data_filename : " << data_in_filename << endl;
 		}
-		if (strcmp(argv[i], "-out") == 0) // flag "-data letter_recognition.xml"
+		else if (strcmp(argv[i], "-out") == 0) // flag "-out <output_csv_file>.txt"
 		{
 			i++;
 			data_out_filename = argv[i];
+			cout << "	Output_data_filename : " << data_out_filename << endl;
+
 		}
-		else if (strcmp(argv[i], "-save") == 0) // flag "-save filename.xml"
+		else if (strcmp(argv[i], "-save") == 0) // flag "-save <model_name>.xml"
 		{
 			i++;
 			filename_to_save = argv[i];
+			cout << "	Save to filename : " << filename_to_save << endl;
 		}
-		else if (strcmp(argv[i], "-load") == 0) // flag "-load filename.xml"
+		else if (strcmp(argv[i], "-load") == 0) // flag "-load <model_name>.xml"
 		{
 			i++;
 			filename_to_load = argv[i];
+			cout << "	Load from filename : " << filename_to_load << endl;
 		}
-		else if (strcmp(argv[i], "-samples") == 0) // flag "-load filename.xml"
+		else if (strcmp(argv[i], "-samples") == 0) // flag "-samples <number_of_samples>"
 		{
 			i++;
-			samples = atoi(argv[i]);
+			n_samples = atoi(argv[i]);
+			cout << "	Number of Samepls : " << n_samples << endl;
 		}
-		else if (strcmp(argv[i], "-in_attributes") == 0) // flag "-load filename.xml"
+		else if (strcmp(argv[i], "-in_attributes") == 0) // flag "-in_attributes <number_of_input_attributes_of_training_data>"
 		{
 			i++;
 			in_attributes = atoi(argv[i]);
+			cout << "	Number of Input's Attributes : " << in_attributes << endl;
 		}
-		else if (strcmp(argv[i], "-out_attributes") == 0) // flag "-load filename.xml"
+		else if (strcmp(argv[i], "-out_attributes") == 0) // flag "-out_attributes <number_of_output_attributes_of_training_data>"
 		{
 			i++;
 			out_attributes = atoi(argv[i]);
+			cout << "	Number of Output's Attributes : " << out_attributes << endl;
 		}
 	}
 
-	printf("argv1: %s, argv2: %s, argv3: %s, argv4: %s, argv5: %d, argv6: %d, argv7: %d\n", data_in_filename.c_str(), data_out_filename.c_str(), filename_to_save.c_str(), filename_to_load.c_str(), samples, in_attributes, out_attributes);
-
-	load_mlp_classifier(data_in_filename, data_out_filename, filename_to_save, filename_to_load, samples, in_attributes, out_attributes);
+	cout << endl;
+	load_mlp_classifier(data_in_filename, data_out_filename, filename_to_save, filename_to_load, n_samples, in_attributes, out_attributes);
 
 	return -1;
 }

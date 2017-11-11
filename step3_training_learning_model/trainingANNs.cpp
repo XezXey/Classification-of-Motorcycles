@@ -193,7 +193,7 @@ static int build_mlp_classifier(const string& data_in_filename,
 }
 
 /******************************************************************************/
-void ANNs_display(void) {
+void Training_ANNs_display(void) {
 	cout << "***********************************************************************************" << endl;
 	cout << "    _____          _       _                      _    _   _ _   _        " << endl;
 	cout << "   |_   _| __ __ _(_)_ __ (_)_ __   __ _   _     / \\  | \\ | | \\ | |___    " << endl;
@@ -216,7 +216,7 @@ int main(int argc, char** argv)
 	int in_attributes = 0;
 	int out_attributes = 0;
 
-	ANNs_display();
+	Training_ANNs_display();
 	cout << endl << endl << "Parameter for Training the network" << endl;;
 	for (int i = 1; i < argc; i++)
 	{
