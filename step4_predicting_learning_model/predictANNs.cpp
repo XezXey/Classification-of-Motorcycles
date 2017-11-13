@@ -118,7 +118,8 @@ static void classifier_predict(const Ptr<StatModel>& model, const Mat& data, con
 	Mat result_responses_non_onehot = Mat::zeros(n_samples, out_attributes, CV_32F);
 
 	int nsamples_all = data.rows;
-	int true_positive = 0;
+	int true_positive = 0;		//Classifier can classifier data correctly.
+	int correcting_class = 0;	//Use to check each output node that equal to expected
 
 	// compute prediction error on train and test data
 	for (int i = 0; i < nsamples_all; i++)
@@ -128,14 +129,14 @@ static void classifier_predict(const Ptr<StatModel>& model, const Mat& data, con
 		for (int j = 0; j < out_attributes; j++) {
 			//convert to onehot
 			result_responses_onehot.at<float>(i,j) = abs(1 - result_responses_non_onehot.at<float>(i, j)) <= 0.1 ? 1.f : 0.f;
+			if (result_responses_onehot.at<float>(i, j) == expected_responses.at<float>(i, j)) {
+				correcting_class++;
+			}
 		}
-		//compare(result_responses_onehot.row(i), expected_responses.row(i), suck, CMP_EQ);
-
-		if (result_responses_onehot.at<float>(i, 0) == expected_responses.at<float>(i, 0) && result_responses_onehot.at<float>(i, 1) == expected_responses.at<float>(i, 1)
-			&& result_responses_onehot.at<float>(i, 1) == expected_responses.at<float>(i, 1)) {
+		if (correcting_class == out_attributes) {
 			true_positive++;
 		}
-
+		correcting_class = 0;
 		//cout << result_responses_onehot.at<float>(i) << " : EQUAL TO : " << expected_responses.at<float>(i) << endl;
 	}
 
@@ -148,7 +149,6 @@ static void classifier_predict(const Ptr<StatModel>& model, const Mat& data, con
 	cout << "*****************************************************************************************************" << endl;
 
 }
-//*100 / ntrain_samples
 
 static int load_mlp_classifier(const string& data_in_filename,
 	const string& data_out_filename,
