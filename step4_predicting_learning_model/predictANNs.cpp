@@ -176,7 +176,14 @@ static int load_mlp_classifier(const string& data_in_filename,
 	if (!filename_to_load.empty())
 	{
 		model = load_classifier<ANN_MLP>(filename_to_load);
-		classifier_predict(model, data, responses, nsamples_all, out_attributes);
+		if (model.empty()) {
+			cout << "Cannot Load ANNs Model for predict." << endl;
+			return false;
+		}
+		else {
+			cout << "Load Model for predict Success." << endl;
+			classifier_predict(model, data, responses, nsamples_all, out_attributes);
+		}
 	}
 	
 	return true;
@@ -208,7 +215,6 @@ int main(int argc, char** argv)
 
 	Predict_ANNs_display();
 
-	int i;
 	cout << endl << "Parameter for Testing the network" << endl;;
 	for (int i = 1; i < argc; i++)
 	{

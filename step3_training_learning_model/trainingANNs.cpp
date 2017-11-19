@@ -44,7 +44,7 @@ int read_data_from_file(const char* filename, Mat data, int n_samples, int n_sam
 		for (int attribute = 0; attribute < n_samples_attributes; attribute++)
 		{
 
-			// first 256 elements (0-255) in each line are the attributes
+			// first 3780 elements (0-3780) in each line are the attributes
 			fscanf_s(fstream, "%f,", &read_value_temp);
 			data.at<float>(line, attribute) = read_value_temp;
 		}
@@ -146,39 +146,42 @@ static int build_mlp_classifier(const string& data_in_filename,
 	if (!filename_to_load.empty())
 	{
 		model = load_classifier<ANN_MLP>(filename_to_load);
-		if (model.empty())
+		if (model.empty()) {
 			cout << "Cannot Load ANNs Model for re-training." << endl;
 			return false;
+		}
+		else cout << "Load Model for re-training Success." << endl;
 	}
 	
+	else {	// 2. Adjust the classifier settings if cannot load
+		int nlayers = 3;
+		vector<int> layer_Size = { in_attributes, 7, out_attributes };
+		/*
+		Each value represent to number of neuron in each layer
+		1.First is Input Layer.
+		2.Middles is Hidden Layer.
+		3.Last is Output Layer
+		*/
+		int method_RPROP = 1;		//Training method is RPROP = faster backpropagation
+		double method_param = 0.001;	//
+		int max_iter = 3000;
+
+		model = ANN_MLP::create();
+		model->setLayerSizes(layer_Size);
+		model->setTrainMethod(method_RPROP, method_param);
+		model->setActivationFunction(ANN_MLP::SIGMOID_SYM, 1, 1);
+		model->setTermCriteria(TC(max_iter, 0));
+
+	}
+
 	//Trainig Process
 	// 1. unroll the responses and data
 	Mat train_data = data.rowRange(0, ntrain_samples);
 	Mat train_responses = responses.rowRange(0, ntrain_samples);
-
-
-	// 2. Adjust the classifier settings
-	int nlayers = 3;
-	vector<int> layer_Size = { in_attributes, 2, out_attributes };	
-	/*
-	Each value represent to number of neuron in each layer
-	1.First is Input Layer.
-	2.Middles is Hidden Layer.
-	3.Last is Output Layer
-	*/
-	int method_RPROP = 1;		//Training method is RPROP = faster backpropagation
-	double method_param = 0.001;	//
-	int max_iter = 3000;
-
 	//Training Data 
 	Ptr<TrainData> trainData = TrainData::create(train_data, ROW_SAMPLE, train_responses);
 
-	model = ANN_MLP::create();
-	model->setLayerSizes(layer_Size);
-	model->setTrainMethod(method_RPROP, method_param);
-	model->setActivationFunction(ANN_MLP::SIGMOID_SYM, 1, 1);
-	model->setTermCriteria(TC(max_iter, 0));
-
+	
 	//3.Train the network.
 	cout << "Training the classifier (may take a few minutes)..." << endl;;
 	model->train(trainData);
