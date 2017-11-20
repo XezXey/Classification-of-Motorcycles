@@ -6,6 +6,7 @@
 #include <ml.hpp>
 #include <windows.h>
 #include <iostream>
+#include <algorithm>
 #include <fstream>
 #include <stdio.h>
 #include <io.h>
@@ -47,7 +48,7 @@ int origin_point = 0;
 int width_shift = 30;
 int height_shift = 25;
 int n_samples_attributes = 3780;
-string classifier_filename = "Finale_Model.xml";
+string classifier_filename = "Eighth_Version_i3780_h7_o3_s300.xml";
 
 int video_processing(String input_filename)
 {
@@ -70,8 +71,8 @@ int video_processing(String input_filename)
 		capt_input_video >> motorcycle_frame; // get a new frame from camera
 
 											  //Flip video in to right direction
-		//transpose(motorcycle_frame, motorcycle_frame);
-		//flip(motorcycle_frame, motorcycle_frame, 1);	//1 is flip the video around
+											  //transpose(motorcycle_frame, motorcycle_frame);
+											  //flip(motorcycle_frame, motorcycle_frame, 1);	//1 is flip the video around
 
 		resize(motorcycle_frame, motorcycle_frame, img_size);	//Resize the image into 640x480
 
@@ -247,8 +248,27 @@ void detect_display_predict(Mat motorcycle_frame)
 		Ptr<ANN_MLP> model;
 		model = load_classifier<ANN_MLP>(classifier_filename);
 		Mat result_responses_non_onehot = Mat::zeros(1, 3, CV_32F);
+		Mat result_responses_onehot = Mat::zeros(1, 3, CV_32F);
 
 		model->predict(data, result_responses_non_onehot);
+		String motorcyclename = "";
+		for (int j = 0; j < 3; j++) {
+			//convert to onehot
+			result_responses_onehot.at<float>(i, j) = abs(1 - result_responses_non_onehot.at<float>(i, j)) <= 0.2 ? 1.f : 0.f;
+			if (result_responses_onehot.at<float>(i, j) == 1.0 && j == 0) {
+				motorcyclename = "Fino";
+			}
+			else if (result_responses_onehot.at<float>(i, j) == 1.0 && j == 1) {
+				motorcyclename = "Scoopy-i";
+			}
+			else if (result_responses_onehot.at<float>(i, j) == 1.0 && j == 2) {
+				motorcyclename = "Wave";
+			}
+		}
+
+		putText(motorcycle_frame, motorcyclename, tl_rect_roi,
+			FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200, 200, 250), 1, CV_AA);
+
 		cout << "Output : " << result_responses_non_onehot << endl;
 		imshow(saved_filename, motorcycle_roi);
 
@@ -402,6 +422,6 @@ int main(int argc, char** argv)
 	}
 #endif
 	return 0;
-    return 0;
+	return 0;
 }
 
