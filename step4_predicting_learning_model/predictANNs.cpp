@@ -1,19 +1,18 @@
-//Predicting the Neural Networks
+//Predicting Neural Networks
 
 #include "stdafx.h"
 
 #include <opencv2/opencv.hpp>
-#include <ml.hpp>
 #include <windows.h>
 #include <iostream>
 #include <fstream>
 #include <stdio.h>
 #include <io.h>
 
-
 using namespace cv;
 using namespace std;
-using namespace ml;
+using namespace cv::ml;
+
 
 // loads the sample database from file (which is a CSV text file)
 int read_data_from_file(const char* filename, Mat data, int n_samples, int n_samples_attributes)
@@ -121,14 +120,14 @@ static void classifier_predict(const Ptr<StatModel>& model, const Mat& data, con
 	int true_positive = 0;		//Classifier can classifier data correctly.
 	int correcting_class = 0;	//Use to check each output node that equal to expected
 
-	// compute prediction error on train and test data
+								// compute prediction error on train and test data
 	for (int i = 0; i < nsamples_all; i++)
 	{
 		model->predict(data.row(i), result_responses_non_onehot.row(i));	//predict for each samples
 
 		for (int j = 0; j < out_attributes; j++) {
 			//convert to onehot
-			result_responses_onehot.at<float>(i,j) = abs(1 - result_responses_non_onehot.at<float>(i, j)) <= 0.1 ? 1.f : 0.f;
+			result_responses_onehot.at<float>(i, j) = abs(1 - result_responses_non_onehot.at<float>(i, j)) <= 0.1 ? 1.f : 0.f;
 			if (result_responses_onehot.at<float>(i, j) == expected_responses.at<float>(i, j)) {
 				correcting_class++;
 			}
@@ -142,9 +141,9 @@ static void classifier_predict(const Ptr<StatModel>& model, const Mat& data, con
 
 
 	cout << "******************************************Predicting Result******************************************" << endl;
-	cout << "Expected : " << endl << expected_responses << endl << endl;
-	cout << "Result by not using Red-Hot : " << endl  << result_responses_non_onehot << endl << endl;
-	cout << "Result by using Red_Hot : " << endl << result_responses_onehot << endl << endl;
+	//cout << "Expected : " << endl << expected_responses << endl << endl;
+	//cout << "Result by not using Red-Hot : " << endl  << result_responses_non_onehot << endl << endl;
+	//cout << "Result by using Red_Hot : " << endl << result_responses_onehot << endl << endl;
 	cout << "========> Predict Corrected : " << (true_positive * 100) / nsamples_all << "%" << endl;
 	cout << "*****************************************************************************************************" << endl;
 
@@ -160,7 +159,7 @@ static int load_mlp_classifier(const string& data_in_filename,
 {
 	Mat data(n_samples, in_attributes, CV_32F);
 	Mat responses(n_samples, out_attributes, CV_32F);
-	
+
 	//Reading data from file both of input and output file
 	bool input_file_load_status = read_data_from_file(data_in_filename.c_str(), data, n_samples, in_attributes);
 	bool output_file_load_status = read_data_from_file(data_out_filename.c_str(), responses, n_samples, out_attributes);
@@ -185,7 +184,7 @@ static int load_mlp_classifier(const string& data_in_filename,
 			classifier_predict(model, data, responses, nsamples_all, out_attributes);
 		}
 	}
-	
+
 	return true;
 }
 

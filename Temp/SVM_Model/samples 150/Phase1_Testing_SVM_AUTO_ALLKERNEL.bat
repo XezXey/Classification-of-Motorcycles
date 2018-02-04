@@ -1,0 +1,6 @@
+predict_SVM.exe -in Testing_Finale_Input_S357_SVM.txt -out Testing_Finale_Output_S357_SVM.txt -load Finale_Model_SVM_autos150chi2.xml -samples 45 -in_attributes 3780 -out_attributes 1
+predict_SVM.exe -in Testing_Finale_Input_S357_SVM.txt -out Testing_Finale_Output_S357_SVM.txt -load Finale_Model_SVM_autos150linear.xml -samples 45 -in_attributes 3780 -out_attributes 1
+predict_SVM.exe -in Testing_Finale_Input_S357_SVM.txt -out Testing_Finale_Output_S357_SVM.txt -load Finale_Model_SVM_autos150sigmoid.xml -samples 45 -in_attributes 3780 -out_attributes 1
+predict_SVM.exe -in Testing_Finale_Input_S357_SVM.txt -out Testing_Finale_Output_S357_SVM.txt -load Finale_Model_SVM_autos150rbf.xml -samples 45 -in_attributes 3780 -out_attributes 1
+predict_SVM.exe -in Testing_Finale_Input_S357_SVM.txt -out Testing_Finale_Output_S357_SVM.txt -load Finale_Model_SVM_autos150poly.xml -samples 45 -in_attributes 3780 -out_attributes 1
+predict_SVM.exe -in Testing_Finale_Input_S357_SVM.txt -out Testing_Finale_Output_S357_SVM.txt -load Finale_Model_SVM_autos150inter.xml -samples 45 -in_attributes 3780 -out_attributes 1

@@ -138,9 +138,9 @@ static int build_mlp_classifier(const string& data_in_filename,
 	int out_attributes)
 {
 	Mat data(n_samples, in_attributes, CV_32F);
-	cout << data.size() << endl;
+	//cout << data.size() << endl;
 	Mat responses(n_samples, out_attributes, CV_32S);
-	cout << responses.size() << endl;
+	//cout << responses.size() << endl;
 
 	//Reading data from file both of input and output file
 	bool input_file_load_status = read_data_from_file(data_in_filename.c_str(), data, n_samples, in_attributes);
@@ -181,7 +181,7 @@ static int build_mlp_classifier(const string& data_in_filename,
 	Mat train_data = data.rowRange(0, ntrain_samples);
 	//cout << "train_data : " << train_data << endl;
 	Mat train_responses = responses.rowRange(0, ntrain_samples);
-	cout << "train_responses : " << train_responses << endl;
+	//cout << "train_responses : " << train_responses << endl;
 	//cout << "train_data : " << train_data << endl;
 
 	//Training Data 
@@ -189,8 +189,14 @@ static int build_mlp_classifier(const string& data_in_filename,
 
 
 	//3.Train the network.
+<<<<<<< HEAD
+	cout << "Training the SVM_Kernel=" << model_svm->getKernelType() << " classifier (may take a few minutes)..." << endl;;
+	model_svm->train(train_data, ROW_SAMPLE, train_responses);
+	//model_svm->trainAuto(train_data, ROW_SAMPLE, train_responses);
+=======
 	cout << "Training the classifier (may take a few minutes)..." << endl;;
 	model_svm->train(train_data, ROW_SAMPLE, train_responses);
+>>>>>>> parent of 526f166... Use autoTrain method and add some example
 
 	//Save trained model
 	if (!filename_to_save.empty())

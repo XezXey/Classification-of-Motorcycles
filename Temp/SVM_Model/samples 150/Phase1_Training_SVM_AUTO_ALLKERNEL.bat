@@ -1,0 +1,6 @@
+training_SVM_AUTOCHI2.exe -in Training_Finale_Input_S357_SVM.txt -out Training_Finale_Output_S357_SVM.txt -save Finale_Model_SVM_autos150chi2.xml -samples 150 -in_attributes 3780 -out_attributes 1
+training_SVM_AUTOLINEAR.exe -in Training_Finale_Input_S357_SVM.txt -out Training_Finale_Output_S357_SVM.txt -save Finale_Model_SVM_autos150linear.xml -samples 150 -in_attributes 3780 -out_attributes 1
+training_SVM_AUTOSIGMOID.exe -in Training_Finale_Input_S357_SVM.txt -out Training_Finale_Output_S357_SVM.txt -save Finale_Model_SVM_autos150sigmoid.xml -samples 150 -in_attributes 3780 -out_attributes 1
+training_SVM_AUTORBF.exe -in Training_Finale_Input_S357_SVM.txt -out Training_Finale_Output_S357_SVM.txt -save Finale_Model_SVM_autos150rbf.xml -samples 150 -in_attributes 3780 -out_attributes 1
+training_SVM_AUTOPOLY.exe -in Training_Finale_Input_S357_SVM.txt -out Training_Finale_Output_S357_SVM.txt -save Finale_Model_SVM_autos150poly.xml -samples 150 -in_attributes 3780 -out_attributes 1
+training_SVM_AUTOINTER.exe -in Training_Finale_Input_S357_SVM.txt -out Training_Finale_Output_S357_SVM.txt -save Finale_Model_SVM_autos150inter.xml -samples 150 -in_attributes 3780 -out_attributes 1

@@ -115,6 +115,11 @@ template<typename T> static Ptr<T> load_classifier(const string& filename_to_loa
 
 inline TermCriteria TC(int iters, double eps)
 {
+	//model->setTermCriteria(TC(max_iter, 0));
+	//COUNT == 1
+	//EPS == 2
+	//COUNT + EPS == 3
+	//In this program We using Stop condition is COUNT or reach the iterations round.
 	return TermCriteria(TermCriteria::MAX_ITER + (eps > 0 ? TermCriteria::EPS : 0), iters, eps);
 }
 
@@ -123,7 +128,8 @@ static int build_mlp_classifier(const string& data_in_filename,
 	const string& filename_to_save, 
 	const string& filename_to_load, 
 	int n_samples, 
-	int in_attributes, 
+	int in_attributes,
+	int n_hidden_node,
 	int out_attributes)
 {
 
@@ -155,14 +161,14 @@ static int build_mlp_classifier(const string& data_in_filename,
 	
 	else {	// 2. Adjust the classifier settings if cannot load
 		int nlayers = 3;
-		vector<int> layer_Size = { in_attributes, 7, out_attributes };
+		vector<int> layer_Size = { in_attributes, n_hidden_node, out_attributes };
 		/*
 		Each value represent to number of neuron in each layer
 		1.First is Input Layer.
 		2.Middles is Hidden Layer.
 		3.Last is Output Layer
 		*/
-		int method_RPROP = 1;		//Training method is RPROP = faster backpropagation
+		int method_RPROP = 1;		//Training method is RPROP = faster backpropagation = 1
 		double method_param = 0.001;	//
 		int max_iter = 3000;
 
@@ -217,6 +223,7 @@ int main(int argc, char** argv)
 	int method = 0;
 	int n_samples = 0;
 	int in_attributes = 0;
+	int n_hidden_node = 0;
 	int out_attributes = 0;
 
 	Training_ANNs_display();
@@ -260,6 +267,14 @@ int main(int argc, char** argv)
 			in_attributes = atoi(argv[i]);
 			cout << "	Number of Input's Attributes : " << in_attributes << endl;
 		}
+
+		else if (strcmp(argv[i], "-n_hidden_nodes") == 0) // flag "-n_hidden_nodes <number_of_hidden_nodes_of_ANNS>"
+		{
+			i++;
+			n_hidden_node = atoi(argv[i]);
+			cout << "	Number of Hidden nodes : " << n_hidden_node << endl;
+		}
+
 		else if (strcmp(argv[i], "-out_attributes") == 0) // flag "-out_attributes <number_of_output_attributes_of_training_data>"
 		{
 			i++;
@@ -271,9 +286,9 @@ int main(int argc, char** argv)
 	//printf("argv1: %s, argv2: %s, argv3: %s, argv4: %s, argv5: %d, argv6: %d, argv7: %d\n", data_in_filename.c_str(), data_out_filename.c_str(), filename_to_save.c_str(), filename_to_load.c_str(), samples, in_attributes, out_attributes);
 
 	cout << "********************************************************************************************" << endl;
-	if (build_mlp_classifier(data_in_filename, data_out_filename, filename_to_save, filename_to_load, n_samples, in_attributes, out_attributes)) {
+	if (build_mlp_classifier(data_in_filename, data_out_filename, filename_to_save, filename_to_load, n_samples, in_attributes, n_hidden_node, out_attributes)) {
 		cout << "Result ===> POOf, Training the network Succesfully!!!" << endl;
-		getchar();
+		//getchar();
 		return 0;
 	}
 	else {
