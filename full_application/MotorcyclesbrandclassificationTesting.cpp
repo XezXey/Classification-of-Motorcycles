@@ -52,15 +52,27 @@ int height_shift = 25;
 int n_samples_attributes = 3780;
 string classifier_filename = "Finale_Model_SVM_autos250poly.xml";
 
+#ifdef SVMS
+Ptr<SVM> model_svm;
+#endif
+
+#ifdef ANNS
+Ptr<ANN_MLP> model_anns;
+#endif
+
+
 int video_processing(String input_filename)
 {
 	Mat motorcycle_roi;
 	vector<float> hog_value_motorcycle_roi;
 
 	VideoCapture capt_input_video(input_filename);
-	capt_input_video.set(CV_CAP_PROP_FPS, 0.55);
+	//VideoCapture capt_input_video(0);
+
+	capt_input_video.set(CV_CAP_PROP_FPS, 60);
 	capt_input_video.set(CV_CAP_PROP_FRAME_WIDTH, 640);
 	capt_input_video.set(CV_CAP_PROP_FRAME_HEIGHT, 480);
+	//capt_input_video.set(CV_CAP_PROP_POS_FRAMES, 60);
 
 	if (!capt_input_video.isOpened()) {
 		return -1;
@@ -70,7 +82,7 @@ int video_processing(String input_filename)
 	for (;;)
 	{
 		Mat motorcycle_frame;
-		capt_input_video >> motorcycle_frame; // get a new frame from camera
+		capt_input_video.read(motorcycle_frame); // get a new frame from camera
 
 											  //Flip video in to right direction
 											  //transpose(motorcycle_frame, motorcycle_frame);
@@ -83,7 +95,7 @@ int video_processing(String input_filename)
 		imshow(window_name, motorcycle_frame);
 		detect_display_predict(motorcycle_frame);
 
-		if (waitKey(1) > 0 || motorcycle_frame.empty()) {	//delay 25 ms before show a next frame.
+		if (waitKey(30) > 0 || motorcycle_frame.empty()) {	//delay 25 ms before show a next frame.
 			break;
 		}
 	}
@@ -168,6 +180,7 @@ void detect_display_predict(Mat motorcycle_frame)
 	//After use cascade dectection we get the ROI
 	//plates.size() is number of ROI		
 
+
 #ifdef PROCESS
 	if (plates.size() != 0) {
 		cout << "=====================================================================================" << endl;
@@ -190,6 +203,7 @@ void detect_display_predict(Mat motorcycle_frame)
 		Point br_rect_roi(plates[i].x + (2 * plates[i].width), plates[i].y + (2 * plates[i].height));
 		cout << plates[i].size() << " " << plates[i].x << " " << plates[i].y << " " << plates[i].width << " " <<
 			plates[i].height << endl;
+
 		//Point tl_rect_roi(plates[i].x, plates[i].y);
 		//Point br_rect_roi(plates[i].x, plates[i].y);
 
@@ -244,21 +258,13 @@ void detect_display_predict(Mat motorcycle_frame)
 		Size img_size(image_size_export_x, image_size_export_y);
 
 		resize(motorcycle_roi, motorcycle_roi, img_size);
-		saved_filename = save_roi_file(motorcycle_roi, (int)i + 1);
+		//saved_filename = save_roi_file(motorcycle_roi, (int)i + 1);
 
 		vector<float>hog_value_motorcycle_roi = calculate_hog_image(motorcycle_roi);	//Find HOG
 		Mat data(1, n_samples_attributes, CV_32F);
 		data = push_hog_to_data_for_predict(hog_value_motorcycle_roi, data);
 
-#ifdef SVMS
-		Ptr<SVM> model_svm;
-		model_svm = load_classifier<SVM>(classifier_filename);
-#endif
 
-#ifdef ANNS
-		Ptr<ANN_MLP> model_anns;
-		model_anns = load_classifier<ANN_MLP>(classifier_filename);
-#endif
 
 		Mat result_responses_non_onehot = Mat::zeros(1, 3, CV_32F);
 		Mat result_responses_onehot = Mat::zeros(1, 3, CV_32F);
@@ -290,7 +296,7 @@ void detect_display_predict(Mat motorcycle_frame)
 #endif
 
 #ifdef SVMS
-		cout << "PREDICTING_SVM : ";
+		//cout << "PREDICTING_SVM : ";
 		int result_svm = 0;
 		int labels;
 		int nsamples_all = data.rows;
@@ -313,7 +319,7 @@ void detect_display_predict(Mat motorcycle_frame)
 				result_svm -= 1065353215;	//Normalized to [-1, 0 ,1]
 				motorcyclename = "Wave";
 			}
-			else motorcyclename = "Unknow";
+			else motorcyclename = "Unknown";
 		}
 #endif
 
@@ -324,6 +330,7 @@ void detect_display_predict(Mat motorcycle_frame)
 #ifdef SVMS
 		cout << "Output(SVM) ===> " << result_svm << endl;
 #endif
+
 #ifdef ANNS
 		cout << "Output(ANNs) : " << result_responses_non_onehot << endl;
 		cout << "Output(ANNs) : " << result_responses_onehot << endl;
@@ -400,8 +407,8 @@ vector<float> calculate_hog_image(Mat motorcycle_roi)
 		0);//Use signed gradients 
 
 	hog_descriptor.compute(motorcycle_roi_grey, hog_descriptors_value);
-	cout << "HOG 's size : " << hog_descriptors_value.size() << endl;
-	cout << "Visualize!!!" << endl;
+	//cout << "HOG 's size : " << hog_descriptors_value.size() << endl;
+	//cout << "Visualize!!!" << endl;
 	return hog_descriptors_value;
 }
 
@@ -428,10 +435,6 @@ template<typename T> static Ptr<T> load_classifier(const string& filename_to_loa
 {
 	// load classifier from the specified file
 	Ptr<T> model = StatModel::load<T>(filename_to_load);
-	if (model.empty())
-		cout << "Could not read the classifier " << filename_to_load << endl;
-	else
-		cout << "The classifier " << filename_to_load << " is loaded.\n";
 
 	return model;
 }
@@ -445,6 +448,29 @@ int main(int argc, char** argv)
 		printf("--(!)Error loading plates cascade\n");
 		return -1;
 	};
+
+
+#ifdef SVMS
+	model_svm = load_classifier<SVM>(classifier_filename);
+	if (model_svm.empty()) {
+		cout << "Could not read the classifier " << classifier_filename << endl;
+		return -2;
+	}
+	else
+		cout << "The classifier " << classifier_filename << " is loaded.\n";
+#endif
+
+#ifdef ANNS
+	model_anns = load_classifier<ANN_MLP>(classifier_filename);
+	if (model_anns.empty()) {
+		cout << "Could not read the classifier " << classifier_filename << endl;
+		return -2;
+	}
+	else
+		cout << "The classifier " << classifier_filename << " is loaded.\n";
+#endif
+
+	
 
 #ifdef DEBUG
 	//-- 2. Choose input method
