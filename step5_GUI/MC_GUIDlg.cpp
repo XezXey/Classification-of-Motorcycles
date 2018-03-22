@@ -52,12 +52,16 @@ Mat push_hog_to_data_for_predict(vector<float>hog_value_motorcycle_roi, Mat data
 Rect convert_roi_from_onlyarea_to_frame(Rect roi);
 
 Mat src, src_temp, img, ROI;
-Rect cropRect(0, 220, 320, 260);
+Rect cropRect(0, 0, 640, 480);
+Rect cropRectTemp(0, 0, 640, 480);
 Point P1(0, 0);
 Point P2(0, 0);
 bool clicked = false;
 String winName = "Cropped Image";
 
+
+//Thread
+CWinThread* mainWindow;
 
 /** Global variables */
 String motorcycle_plate_cascade_name = "cascade_motor_plate.xml";
@@ -94,6 +98,7 @@ int video_processing(String input_filename)
 
 	for (;;)
 	{
+		cropRectTemp = cropRect;
 		Mat motorcycle_frame, motorcycle_frame_original, motorcycle_show;	
 		//motorcycle_frame use for drawing and labeling, motorcycle_frame_original use for analysis
 
@@ -107,13 +112,13 @@ int video_processing(String input_filename)
 		motorcycle_frame_original.copyTo(src_temp);	//Use for crop a roi operate area
 
 		motorcycle_frame_original.copyTo(motorcycle_show);
-		rectangle(motorcycle_show, cropRect, Scalar(0, 0, 255), 2, 8, 0);
+		rectangle(motorcycle_show, cropRectTemp, Scalar(0, 0, 255), 2, 8, 0);
 
 
 		vector<Rect> plates;
 
 		//Change the rect_area_operate
-		Rect rectCrop_area_operate = Rect(cropRect.x, cropRect.y, cropRect.width, cropRect.height);
+		Rect rectCrop_area_operate = Rect(cropRectTemp.x, cropRectTemp.y, cropRectTemp.width, cropRectTemp.height);
 		motorcycle_frame = Mat(motorcycle_frame_original, rectCrop_area_operate);
 		//resize(motorcycle_frame, motorcycle_frame, img_size);	//Resize the image into 640x480
 
@@ -234,8 +239,8 @@ int video_processing(String input_filename)
 //Rect cropRect(0, 220, 640, 260);
 Rect convert_roi_from_onlyarea_to_frame(Rect roi) {
 	Rect roi_adjusted = roi;
-	roi_adjusted.x = roi.x + cropRect.x;
-	roi_adjusted.y = roi.y + cropRect.y;
+	roi_adjusted.x = roi.x + cropRectTemp.x;
+	roi_adjusted.y = roi.y + cropRectTemp.y;
 	return roi_adjusted;
 }
 
@@ -279,8 +284,8 @@ vector<Point> check_correct_tl_br(Point tl, Point br)
 {
 	if (tl.x <= origin_point)	tl.x = origin_point;
 	if (tl.y <= origin_point)	tl.y = origin_point;
-	if (br.x >= cropRect.width)	br.x = cropRect.width - 1;
-	if (br.y >= cropRect.height)	br.y = cropRect.height - 1;
+	if (br.x >= cropRectTemp.width)	br.x = cropRectTemp.width - 1;
+	if (br.y >= cropRectTemp.height)	br.y = cropRectTemp.height - 1;
 	return { tl, br };
 }
 
@@ -289,16 +294,16 @@ vector<int> check_correct_w_h(Point tl_rect_roi, int width, int height)
 	int width_shift = 30;
 	int height_shift = 25;
 	//Width check and adjust into proper size
-	if ((width * 3) + width_shift > cropRect.width || tl_rect_roi.x + (width * 3) + width_shift > cropRect.width)
-		width = cropRect.width - tl_rect_roi.x;
+	if ((width * 3) + width_shift > cropRectTemp.width || tl_rect_roi.x + (width * 3) + width_shift > cropRectTemp.width)
+		width = cropRectTemp.width - tl_rect_roi.x;
 	else
 		width = (width * 3) + width_shift;
 
 
 
 	//Height check and adjust into proper size and auto get rid of license plate
-	if ((height)+height_shift > cropRect.height || tl_rect_roi.y + (height) + height_shift  > cropRect.height)
-		height = cropRect.height - tl_rect_roi.y;
+	if ((height)+height_shift > cropRectTemp.height || tl_rect_roi.y + (height) + height_shift  > cropRectTemp.height)
+		height = cropRectTemp.height - tl_rect_roi.y;
 	else
 		height = (height) + height_shift;
 
@@ -385,8 +390,8 @@ void showImage() {
 	}
 
 	rectangle(img, cropRect, Scalar(0, 255, 0), 1, 8, 0);
-	roi_coor += "W : " + to_string(cropRect.width);
-	roi_coor += " H : " + to_string(cropRect.height);
+	roi_coor += "x : " + to_string(cropRect.x);
+	roi_coor += " y : " + to_string(cropRect.y);
 	putText(img, roi_coor, Point(cropRect.x, cropRect.y),
 		FONT_HERSHEY_COMPLEX_SMALL, 1.5, cvScalar(255, 0, 0), 2, CV_AA);
 	imshow(winName, img);
@@ -710,7 +715,7 @@ void CMC_GUIDlg::OnBnClickedOk()
 void CMC_GUIDlg::OnBnClickedButtonStart()
 {
 	// TODO: Add your control notification handler code here
-	AfxBeginThread(MyThreadProc, 0);
+	mainWindow = AfxBeginThread(MyThreadProc, 0);
 
 }
 
@@ -725,8 +730,13 @@ void CMC_GUIDlg::OnBnClickedCheckIpcamera()
 void CMC_GUIDlg::OnBnClickedMfcbuttonChangeRoi()
 {
 	// TODO: Add your control notification handler code here
-	//SuspendThread(MyThreadProc);
-	localize_operation_area();
-	//ResumeThread(MyThreadProc);
+	if (src_temp.empty()) {
+		return;
+	}
+	else {
+		SuspendThread(mainWindow->m_hThread);
+		localize_operation_area();
+		ResumeThread(mainWindow->m_hThread);
+	}
+	
 }
-
