@@ -62,6 +62,7 @@ String winName = "Cropped Image";
 
 //Thread
 CWinThread* mainWindow;
+int thread_start_flag = 0;
 
 /** Global variables */
 String motorcycle_plate_cascade_name = "cascade_motor_plate.xml";
@@ -76,6 +77,9 @@ int width_shift = 30;
 int height_shift = 25;
 int n_samples_attributes = 3780;
 string classifier_filename = "Finale_Model_SVM_autos250poly.xml";
+char input_source[100];
+int open_ipcamera_flag = 0;
+VideoCapture capt_input_video;
 
 Ptr<SVM> model_svm;
 
@@ -83,10 +87,13 @@ int video_processing(String input_filename)
 {
 	Mat motorcycle_roi;
 	vector<float> hog_value_motorcycle_roi;
+	if (open_ipcamera_flag == 1) {
+		capt_input_video.open(0);
 
-	VideoCapture capt_input_video(input_filename);
-	//VideoCapture capt_input_video(0);
-
+	}
+	else {
+		capt_input_video.open(input_source);
+	}
 	capt_input_video.set(CV_CAP_PROP_FPS, 60);
 	capt_input_video.set(CV_CAP_PROP_FRAME_WIDTH, 640);
 	capt_input_video.set(CV_CAP_PROP_FRAME_HEIGHT, 480);
@@ -98,11 +105,15 @@ int video_processing(String input_filename)
 
 	for (;;)
 	{
+
 		cropRectTemp = cropRect;
 		Mat motorcycle_frame, motorcycle_frame_original, motorcycle_show;	
 		//motorcycle_frame use for drawing and labeling, motorcycle_frame_original use for analysis
 
 		capt_input_video.read(motorcycle_frame_original); // get a new frame from camera
+		if (motorcycle_frame_original.empty()) {
+			return 0;
+		}
 
 												 //Flip video in to right direction
 												 //transpose(motorcycle_frame, motorcycle_frame);
@@ -228,7 +239,7 @@ int video_processing(String input_filename)
 		imshow(window_name, motorcycle_show);
 		//imshow("Operate Area and Detection", motorcycle_show); for debug that show on other screen
 
-		if (waitKey(30) > 0 || motorcycle_frame_original.empty()) {	//delay 25 ms before show a next frame.
+		if (waitKey(30) > 0) {	//delay 25 ms before show a next frame.
 			break;
 		}
 	}
@@ -504,12 +515,18 @@ void localize_operation_area(void) {
 UINT MyThreadProc(LPVOID pParam)
 {
 	cout << "Begin Thread..." << endl;
+	thread_start_flag = 1;
 	model_svm = load_classifier<SVM>(classifier_filename);
 	if (!motorcycle_plate_cascade.load("cascade_motor_plate.xml")) {
 		return -1;
 	};
 
-	video_processing("PJ2_Test_Finale.mp4");
+	//video_processing("PJ2_Test_Finale.mp4");
+	video_processing(input_source);
+	thread_start_flag = 0;
+	CString errText;
+	errText.Format(L"Program ended");
+	AfxMessageBox(errText);
 
 	return 0;
 }
@@ -552,6 +569,8 @@ END_MESSAGE_MAP()
 
 CMC_GUIDlg::CMC_GUIDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(IDD_MC_GUI_DIALOG, pParent)
+	, editbrowse_filename(_T(""))
+	, open_ipcamera(0)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -559,6 +578,10 @@ CMC_GUIDlg::CMC_GUIDlg(CWnd* pParent /*=NULL*/)
 void CMC_GUIDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
+	DDX_CBString(pDX, IDC_MFCEDITBROWSE1, editbrowse_filename);
+	DDX_Check(pDX, IDC_CHECK_IPCAMERA, open_ipcamera);
+	DDV_MaxChars(pDX, editbrowse_filename, 100);
+	DDV_MinMaxInt(pDX, open_ipcamera, 0, 1);
 }
 
 BEGIN_MESSAGE_MAP(CMC_GUIDlg, CDialogEx)
@@ -695,6 +718,9 @@ void CMC_GUIDlg::OnEnChangeMfceditbrowse1()
 	// with the ENM_CHANGE flag ORed into the mask.
 
 	// TODO:  Add your control notification handler code here
+	UpdateData(true);
+	//AfxMessageBox(editbrowse_filename);
+	strcpy(input_source, CStringA(editbrowse_filename).GetString());
 }
 
 
@@ -702,6 +728,14 @@ void CMC_GUIDlg::OnEnChangeMfceditbrowse1()
 void CMC_GUIDlg::OnBnClickedButtonRefresh()	
 {
 	// TODO: Add your control notification handler code here
+	TerminateThread(mainWindow->m_hThread, NULL);
+	thread_start_flag = 0;
+	CString errText;
+	errText.Format(L"Refresing...");
+	AfxMessageBox(errText);
+	mainWindow = AfxBeginThread(MyThreadProc, 0);
+	thread_start_flag = 1;
+
 }
 
 //Ok Button (ID : IDC_BUTTON_OK)
@@ -714,8 +748,22 @@ void CMC_GUIDlg::OnBnClickedOk()
 //Start Button (ID : IDC_BUTTON_START)
 void CMC_GUIDlg::OnBnClickedButtonStart()
 {
+	if (thread_start_flag == 1) {
+		CString errText;
+		errText.Format(L"Program is started");
+		AfxMessageBox(errText);
+		return;
+	}
 	// TODO: Add your control notification handler code here
-	mainWindow = AfxBeginThread(MyThreadProc, 0);
+	else if (editbrowse_filename == "" && open_ipcamera == 0) {
+		CString errText;
+		errText.Format(L"Please select your input file.");
+		AfxMessageBox(errText);
+	}
+	else {
+		mainWindow = AfxBeginThread(MyThreadProc, 0);
+
+	}
 
 }
 
@@ -723,6 +771,35 @@ void CMC_GUIDlg::OnBnClickedButtonStart()
 void CMC_GUIDlg::OnBnClickedCheckIpcamera()
 {
 	// TODO: Add your control notification handler code here
+	UpdateData(true);
+	if (open_ipcamera == 1) {
+		TerminateThread(mainWindow->m_hThread, NULL);
+		thread_start_flag = 0;
+		open_ipcamera_flag = 1;
+		CString errText;
+		errText.Format(L"Switching to IP Camera...");
+		AfxMessageBox(errText);
+		mainWindow = AfxBeginThread(MyThreadProc, 0);
+		thread_start_flag = 1;
+
+		/*CString errText;
+		errText.Format(L"Check");
+		AfxMessageBox(errText);
+		*/
+	}
+	else {
+		open_ipcamera_flag = 0;
+		capt_input_video.release();
+		CString errText;
+		errText.Format(L"Camera Closed");
+		AfxMessageBox(errText);
+		/*
+		CString errText;
+		errText.Format(L"Uncheck");
+		AfxMessageBox(errText);
+		*/
+	}
+
 }
 
 

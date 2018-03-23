@@ -43,4 +43,6 @@ public:
 	afx_msg void OnBnClickedCheckIpcamera();
 	afx_msg void OnBnClickedMfcbutton3();
 	afx_msg void OnBnClickedMfcbuttonChangeRoi();
+	CString editbrowse_filename;
+	int open_ipcamera;
 };
