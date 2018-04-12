@@ -32,17 +32,16 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
 public:
-	afx_msg void OnStnClickedStaticVideo();
-	afx_msg void OnEnChangeMfceditbrowse1();
-	afx_msg void OnBnClickedButton1();
+	afx_msg void OnEnChangeMfceditbrowse1();	//On change on file browser
 	afx_msg void OnBnClickedButtonRefresh();
 	afx_msg void OnBnClickedOk();
-	afx_msg void OnBnClickedButton3();
 	afx_msg void OnBnClickedButtonStart();
-	afx_msg void OnBnClickedCheck2();
 	afx_msg void OnBnClickedCheckIpcamera();
-	afx_msg void OnBnClickedMfcbutton3();
 	afx_msg void OnBnClickedMfcbuttonChangeRoi();
 	CString editbrowse_filename;
+	CString editbrowse_classifier_filename;
+	CString editbrowse_cascade_filename;
 	int open_ipcamera;
+	afx_msg void OnEnChangeMfceditbrowse2();	//On change on Model browser
+	afx_msg void OnEnChangeMfceditbrowse3Pm();	//On change on Plate Cascade Model browser
 };

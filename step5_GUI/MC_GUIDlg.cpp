@@ -2,6 +2,7 @@
 //
 
 #include "stdafx.h"
+#include <experimental/filesystem>
 #include <stdexcept>
 #include <vector>
 #include "MC_GUI.h"
@@ -9,7 +10,7 @@
 #include "afxdialogex.h"
 #include <opencv2/opencv.hpp>
 #include <ml.hpp>
-#include <windows.h>
+#include <Windows.h>
 #include <iostream>
 #include <algorithm>
 #include <fstream>
@@ -37,8 +38,11 @@ int video_processing(String input_filename);
 string save_roi_file(Mat motorcycle_roi, int filenum);
 vector<Point> check_correct_tl_br(Point tl, Point br);
 vector<int> check_correct_w_h(Point tl_rect_roi, int width, int height);
+vector<Point> check_correct_tl_br_show(Point tl, Point br);
+vector<int> check_correct_w_h_show(Point tl_rect_roi, int width, int height);
 void localize_operation_area(void);
 void onMouse(int event, int x, int y, int f, void*);
+void refresh_program(void);
 
 
 //2.Find HOG
@@ -59,6 +63,11 @@ Point P2(0, 0);
 bool clicked = false;
 String winName = "Cropped Image";
 
+//5.Save&Load roi_config.ini files
+void save_analysis_roi_ini_files(void);
+void load_analysis_roi_ini_files(void);
+
+
 
 //Thread
 CWinThread* mainWindow;
@@ -77,11 +86,31 @@ int width_shift = 30;
 int height_shift = 25;
 int n_samples_attributes = 3780;
 string classifier_filename = "Finale_Model_SVM_autos250poly.xml";
-char input_source[100];
+char input_source[300];
 int open_ipcamera_flag = 0;
 VideoCapture capt_input_video;
 
 Ptr<SVM> model_svm;
+
+void save_analysis_roi_ini_files(void) {
+	wchar_t buffer[4][15];
+	wsprintfW(buffer[0], L"%d", cropRect.x);
+	wsprintfW(buffer[1], L"%d", cropRect.y);
+	wsprintfW(buffer[2], L"%d", cropRect.width);
+	wsprintfW(buffer[3], L"%d", cropRect.height);
+	WritePrivateProfileString(TEXT("ROI_SETTINGS"), TEXT("X"), buffer[0], TEXT(".\\roi_config.ini"));
+	WritePrivateProfileString(TEXT("ROI_SETTINGS"), TEXT("Y"), buffer[1], TEXT(".\\roi_config.ini"));
+	WritePrivateProfileString(TEXT("ROI_SETTINGS"), TEXT("WIDTH"), buffer[2], TEXT(".\\roi_config.ini"));
+	WritePrivateProfileString(TEXT("ROI_SETTINGS"), TEXT("HEIGHT"), buffer[3], TEXT(".\\roi_config.ini"));
+
+}
+
+void load_analysis_roi_ini_files(void) {
+	cropRect.x = GetPrivateProfileInt(TEXT("ROI_SETTINGS"), TEXT("X"), 0, TEXT(".\\roi_config.ini"));
+	cropRect.y = GetPrivateProfileInt(TEXT("ROI_SETTINGS"), TEXT("Y"), 0, TEXT(".\\roi_config.ini"));
+	cropRect.width = GetPrivateProfileInt(TEXT("ROI_SETTINGS"), TEXT("WIDTH"), 0, TEXT(".\\roi_config.ini"));
+	cropRect.height = GetPrivateProfileInt(TEXT("ROI_SETTINGS"), TEXT("HEIGHT"), 0, TEXT(".\\roi_config.ini"));
+}
 
 int video_processing(String input_filename)
 {
@@ -89,7 +118,6 @@ int video_processing(String input_filename)
 	vector<float> hog_value_motorcycle_roi;
 	if (open_ipcamera_flag == 1) {
 		capt_input_video.open(0);
-
 	}
 	else {
 		capt_input_video.open(input_source);
@@ -107,7 +135,7 @@ int video_processing(String input_filename)
 	{
 
 		cropRectTemp = cropRect;
-		Mat motorcycle_frame, motorcycle_frame_original, motorcycle_show;	
+		Mat motorcycle_frame, motorcycle_frame_original, motorcycle_show, motorcycle_for_crop_only_motorcycle;	
 		//motorcycle_frame use for drawing and labeling, motorcycle_frame_original use for analysis
 
 		capt_input_video.read(motorcycle_frame_original); // get a new frame from camera
@@ -122,7 +150,8 @@ int video_processing(String input_filename)
 		resize(motorcycle_frame_original, motorcycle_frame_original, img_size);	//Resize the image into 640x480
 		motorcycle_frame_original.copyTo(src_temp);	//Use for crop a roi operate area
 
-		motorcycle_frame_original.copyTo(motorcycle_show);
+		motorcycle_frame_original.copyTo(motorcycle_for_crop_only_motorcycle);//Use for crop the motorcycle and display on result screen
+		motorcycle_frame_original.copyTo(motorcycle_show);//Use for show in main window
 		rectangle(motorcycle_show, cropRectTemp, Scalar(0, 0, 255), 2, 8, 0);
 
 
@@ -151,15 +180,41 @@ int video_processing(String input_filename)
 
 			Point tl_rect_roi(plates[i].x - plates[i].width - width_shift, plates[i].y - plates[i].height - height_shift);
 			Point br_rect_roi(plates[i].x + (2 * plates[i].width), plates[i].y + (2 * plates[i].height));
+
+			//For show all of motorcycle part --> work @ 12/4/2561
+			// Use tl br instead of using tl, width and height
+			Point tl_rect_roi_point_show_output(plates[i].x - plates[i].width - width_shift + cropRectTemp.x, plates[i].y - (4 * plates[i].height) - height_shift + cropRectTemp.y);
+			Point br_rect_roi_point_show_output(plates[i].x + (2 * plates[i].width) + cropRectTemp.x, plates[i].y + (4 * plates[i].height) + cropRectTemp.y);
+			
+			//Put text for show the position of the tl
+			//putText(motorcycle_for_crop_only_motorcycle, to_string(tl_rect_roi_point_show_output.x), Point(tl_rect_roi_point_show_output.x, tl_rect_roi_point_show_output.y),
+			//	FONT_HERSHEY_COMPLEX_SMALL, 1.5, cvScalar(255, 0, 0), 2, CV_AA);
+
+			//Put circle to tl and br point to make sure it's in the right position
+			circle(motorcycle_for_crop_only_motorcycle, tl_rect_roi_point_show_output, 20, (0, 0, 255), 3);
+			circle(motorcycle_for_crop_only_motorcycle, br_rect_roi_point_show_output, 20, (0, 0, 255), 3);
+			
+			/*
 			cout << plates[i].size() << " " << plates[i].x << " " << plates[i].y << " " << plates[i].width << " " <<
 				plates[i].height << endl;
-
+			*/
 			//Point tl_rect_roi(plates[i].x, plates[i].y);
 			//Point br_rect_roi(plates[i].x, plates[i].y);
 
 			vector<Point> tl_br_corrected = check_correct_tl_br(tl_rect_roi, br_rect_roi);
 			tl_rect_roi = tl_br_corrected[0];
 			br_rect_roi = tl_br_corrected[1];
+
+
+			//For show all of motorcycle part --> work @ 12/4/2561 
+			//@12/4/2561 Method is us tl and br to crop all motorcycle part instead of using the tl, width and height
+			vector<Point> tl_br_corrected_show = check_correct_tl_br_show(tl_rect_roi_point_show_output, br_rect_roi_point_show_output);
+			tl_rect_roi_point_show_output = tl_br_corrected_show[0];
+			br_rect_roi_point_show_output = tl_br_corrected_show[1];
+
+			//Put circle to tl and br point after check the correct of real position to make sure it's in the right position
+			circle(motorcycle_for_crop_only_motorcycle, tl_rect_roi_point_show_output, 10, (0, 255, 0), 3);
+			circle(motorcycle_for_crop_only_motorcycle, br_rect_roi_point_show_output, 20, (0, 255, 0), 3);
 
 			//Draw the lines around the ROI by using red color with thickness = 2 , lineType is 8 and no shift
 			//1. draw by use tl_rect_roi and br_rect_roi
@@ -176,8 +231,24 @@ int video_processing(String input_filename)
 
 			//Rect roi(tl_rect_roi.x, tl_rect_roi.y, (plates[i].width * 3) + 30, (plates[i].height * 3) + 40);
 			Rect roi(tl_rect_roi.x, tl_rect_roi.y, width_height_corrected[0], width_height_corrected[1]);
+
+			//This show real plate position
 			Rect roi_show(tl_rect_roi.x, tl_rect_roi.y, width_height_corrected[0], width_height_corrected[1]);
 
+			//For show all of motorcycle part --> not work @ 12/4/2561 Change method to tl and br
+			//vector<int> width_height_corrected_show = check_correct_w_h_show(tl_rect_roi_point_show_output, plates[i].width, 7 * (plates[i].height  * (480 / cropRectTemp.height)));
+			
+			//Rect roi_show_on_output(tl_rect_roi_point_show_output.x, tl_rect_roi_point_show_output.y, width_height_corrected[0], width_height_corrected[1] * (480 / cropRectTemp.height));
+			Rect roi_show_on_output(tl_rect_roi_point_show_output, br_rect_roi_point_show_output);
+
+			//putText(motorcycle_for_crop_only_motorcycle, to_string(width_height_corrected[1]), Point(tl_rect_roi_point_show_output.x, tl_rect_roi_point_show_output.y),
+			//	FONT_HERSHEY_COMPLEX_SMALL, 1.5, cvScalar(255, 0, 0), 2, CV_AA);
+			imshow("Motorcycle_frame_original", motorcycle_for_crop_only_motorcycle);
+			imshow("Motorcycle", motorcycle_for_crop_only_motorcycle(roi_show_on_output));
+			Mat motorcycle_show_on_window_roi = motorcycle_frame_original(roi_show_on_output);
+			Size img_size_show_on_window_roi(256, 512);
+			resize(motorcycle_show_on_window_roi, motorcycle_show_on_window_roi, img_size_show_on_window_roi);
+			imshow(window_roi, motorcycle_show_on_window_roi);
 
 			rectangle(motorcycle_frame, roi, Scalar(255, 0, 0), 2, 8, 0);
 
@@ -185,7 +256,7 @@ int video_processing(String input_filename)
 			motorcycle_roi = motorcycle_frame(roi);
 			Size img_size_roi(image_size_export_x, image_size_export_y);
 			resize(motorcycle_roi, motorcycle_roi, img_size_roi);
-			imshow(window_roi, motorcycle_roi);
+			//imshow(window_roi, motorcycle_roi);
 
 			vector<float>hog_value_motorcycle_roi = calculate_hog_image(motorcycle_roi);	//Find HOG
 			Mat data(1, n_samples_attributes, CV_32F);
@@ -313,13 +384,47 @@ vector<int> check_correct_w_h(Point tl_rect_roi, int width, int height)
 
 
 	//Height check and adjust into proper size and auto get rid of license plate
-	if ((height)+height_shift > cropRectTemp.height || tl_rect_roi.y + (height) + height_shift  > cropRectTemp.height)
+	if ((height) + height_shift > cropRectTemp.height || tl_rect_roi.y + (height) + height_shift  > cropRectTemp.height)
 		height = cropRectTemp.height - tl_rect_roi.y;
 	else
 		height = (height) + height_shift;
 
 	return { width, height };
 }
+
+//For show all of motorcycle -> not work yet @ 5/4/2561
+vector<Point> check_correct_tl_br_show(Point tl, Point br)
+{
+	if (tl.x <= origin_point)	tl.x = origin_point;
+	if (tl.y <= origin_point)	tl.y = origin_point;
+	if (br.x >= 640)	br.x = 639;
+	if (br.y >= 480)	br.y = 479;
+	return { tl, br };
+}
+
+vector<int> check_correct_w_h_show(Point tl_rect_roi, int width, int height)
+{
+	int width_shift = 30;
+	int height_shift = 40;
+	//Width check and adjust into proper size
+	if ((width * 3) + width_shift > 640 || tl_rect_roi.x + (width * 3) + width_shift > 640)
+		width = 640 - tl_rect_roi.x;
+	else
+		width = (width * 3) + width_shift;
+
+	//Height check and adjust into proper size and auto get rid of license plate
+	if (tl_rect_roi.y + (7 * height) + height_shift > 480) {
+		height = 480 - tl_rect_roi.y;
+		imshow("Size over height", Mat(1, 1, CV_64F, double(0)));
+	}	
+	else {
+		height = (7 * height) + height_shift;
+		imshow("Size not over height", Mat(1, 1, CV_64F, double(0)));
+	}
+
+	return { width, height };
+}
+
 
 vector<float> calculate_hog_image(Mat motorcycle_roi)
 {
@@ -517,7 +622,7 @@ UINT MyThreadProc(LPVOID pParam)
 	cout << "Begin Thread..." << endl;
 	thread_start_flag = 1;
 	model_svm = load_classifier<SVM>(classifier_filename);
-	if (!motorcycle_plate_cascade.load("cascade_motor_plate.xml")) {
+	if (!motorcycle_plate_cascade.load(motorcycle_plate_cascade_name)) {
 		return -1;
 	};
 
@@ -570,6 +675,8 @@ END_MESSAGE_MAP()
 CMC_GUIDlg::CMC_GUIDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(IDD_MC_GUI_DIALOG, pParent)
 	, editbrowse_filename(_T(""))
+	, editbrowse_classifier_filename(_T(""))
+	, editbrowse_cascade_filename(_T(""))
 	, open_ipcamera(0)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
@@ -579,8 +686,14 @@ void CMC_GUIDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
 	DDX_CBString(pDX, IDC_MFCEDITBROWSE1, editbrowse_filename);
+	DDX_CBString(pDX, IDC_MFCEDITBROWSE2, editbrowse_classifier_filename);
+	DDX_CBString(pDX, IDC_MFCEDITBROWSE3_PM, editbrowse_cascade_filename);
+
 	DDX_Check(pDX, IDC_CHECK_IPCAMERA, open_ipcamera);
-	DDV_MaxChars(pDX, editbrowse_filename, 100);
+	DDV_MaxChars(pDX, editbrowse_filename, 300);
+	DDV_MaxChars(pDX, editbrowse_classifier_filename, 300);
+	DDV_MaxChars(pDX, editbrowse_cascade_filename, 300);
+
 	DDV_MinMaxInt(pDX, open_ipcamera, 0, 1);
 }
 
@@ -588,13 +701,14 @@ BEGIN_MESSAGE_MAP(CMC_GUIDlg, CDialogEx)
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
-	ON_STN_CLICKED(IDC_STATIC_VIDEO, &CMC_GUIDlg::OnStnClickedStaticVideo)
 	ON_EN_CHANGE(IDC_MFCEDITBROWSE1, &CMC_GUIDlg::OnEnChangeMfceditbrowse1)
 	ON_BN_CLICKED(IDC_BUTTON_REFRESH, &CMC_GUIDlg::OnBnClickedButtonRefresh)
 	ON_BN_CLICKED(IDOK, &CMC_GUIDlg::OnBnClickedOk)
 	ON_BN_CLICKED(IDC_BUTTON_START, &CMC_GUIDlg::OnBnClickedButtonStart)
 	ON_BN_CLICKED(IDC_CHECK_IPCAMERA, &CMC_GUIDlg::OnBnClickedCheckIpcamera)
 	ON_BN_CLICKED(IDC_MFCBUTTON_CHANGE_ROI, &CMC_GUIDlg::OnBnClickedMfcbuttonChangeRoi)
+	ON_EN_CHANGE(IDC_MFCEDITBROWSE2, &CMC_GUIDlg::OnEnChangeMfceditbrowse2)
+	ON_EN_CHANGE(IDC_MFCEDITBROWSE3_PM, &CMC_GUIDlg::OnEnChangeMfceditbrowse3Pm)
 END_MESSAGE_MAP()
 
 
@@ -630,9 +744,8 @@ BOOL CMC_GUIDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	// TODO: Add extra initialization here
-	
 	cvNamedWindow("Capture - Motorcycle Plate detection", 0);
-	cvResizeWindow("Capture - Motorcycle Plate detection", 822, 480); //420, 240);
+	cvResizeWindow("Capture - Motorcycle Plate detection", 1321, 789); //(1321, 789) size get from snipping tools
 	HWND hWnd_video = (HWND)cvGetWindowHandle("Capture - Motorcycle Plate detection");
 	HWND hParent_video = ::GetParent(hWnd_video);
 	HWND hDlg_video = GetDlgItem(IDC_STATIC_VIDEO)->m_hWnd;
@@ -640,15 +753,18 @@ BOOL CMC_GUIDlg::OnInitDialog()
 	::ShowWindow(hParent_video, SW_HIDE);
 	
 	cvNamedWindow("ROI - Motorcycle", 0);
-	cvResizeWindow("ROI - Motorcycle", 64, 128); //420, 240);
+	cvResizeWindow("ROI - Motorcycle", 466, 588); //(468, 531) size get from snipping tools
 	HWND hWnd_roi = (HWND)cvGetWindowHandle("ROI - Motorcycle");
 	HWND hParent_roi = ::GetParent(hWnd_roi);
 	HWND hDlg_roi = GetDlgItem(IDC_STATIC_ROI)->m_hWnd;
 	::SetParent(hWnd_roi, hDlg_roi);
 	::ShowWindow(hParent_roi, SW_HIDE);
-
-	//AfxBeginThread(MyThreadProc, 0);
-
+	if (experimental::filesystem::exists(".\\roi_config.ini") == TRUE) {
+		load_analysis_roi_ini_files();
+	}
+	else {
+		save_analysis_roi_ini_files();
+	}
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
@@ -703,12 +819,6 @@ HCURSOR CMC_GUIDlg::OnQueryDragIcon()
 }
 
 
-//Video Player Window
-void CMC_GUIDlg::OnStnClickedStaticVideo()
-{
-	// TODO: Add your control notification handler code here
-}
-
 //File Browser (ID : IDC_MFCEDITBROWSE1)
 void CMC_GUIDlg::OnEnChangeMfceditbrowse1()
 {
@@ -723,11 +833,8 @@ void CMC_GUIDlg::OnEnChangeMfceditbrowse1()
 	strcpy(input_source, CStringA(editbrowse_filename).GetString());
 }
 
-
-//Refresh Button (ID : IDC_BUTTON_REFRESH)
-void CMC_GUIDlg::OnBnClickedButtonRefresh()	
+void refresh_program(void) 
 {
-	// TODO: Add your control notification handler code here
 	TerminateThread(mainWindow->m_hThread, NULL);
 	thread_start_flag = 0;
 	CString errText;
@@ -735,7 +842,13 @@ void CMC_GUIDlg::OnBnClickedButtonRefresh()
 	AfxMessageBox(errText);
 	mainWindow = AfxBeginThread(MyThreadProc, 0);
 	thread_start_flag = 1;
+}
 
+//Refresh Button (ID : IDC_BUTTON_REFRESH)
+void CMC_GUIDlg::OnBnClickedButtonRefresh()	
+{
+	// TODO: Add your control notification handler code here
+	refresh_program();
 }
 
 //Ok Button (ID : IDC_BUTTON_OK)
@@ -748,6 +861,7 @@ void CMC_GUIDlg::OnBnClickedOk()
 //Start Button (ID : IDC_BUTTON_START)
 void CMC_GUIDlg::OnBnClickedButtonStart()
 {
+
 	if (thread_start_flag == 1) {
 		CString errText;
 		errText.Format(L"Program is started");
@@ -772,20 +886,28 @@ void CMC_GUIDlg::OnBnClickedCheckIpcamera()
 {
 	// TODO: Add your control notification handler code here
 	UpdateData(true);
-	if (open_ipcamera == 1) {
+	if ((open_ipcamera == 1) && (mainWindow != NULL)) {
 		TerminateThread(mainWindow->m_hThread, NULL);
 		thread_start_flag = 0;
 		open_ipcamera_flag = 1;
 		CString errText;
 		errText.Format(L"Switching to IP Camera...");
 		AfxMessageBox(errText);
-		mainWindow = AfxBeginThread(MyThreadProc, 0);
 		thread_start_flag = 1;
+		mainWindow = AfxBeginThread(MyThreadProc, 0);
 
 		/*CString errText;
 		errText.Format(L"Check");
 		AfxMessageBox(errText);
 		*/
+	}
+	else if (open_ipcamera == 1) {
+		CString errText;
+		errText.Format(L"Start with IP Camera...");
+		AfxMessageBox(errText);
+		open_ipcamera_flag = 1;
+		thread_start_flag = 1;
+		mainWindow = AfxBeginThread(MyThreadProc, 0);
 	}
 	else {
 		open_ipcamera_flag = 0;
@@ -802,7 +924,6 @@ void CMC_GUIDlg::OnBnClickedCheckIpcamera()
 
 }
 
-
 //Change ROI analysis Button (ID : IDC_MFCBUTTON_CHANGE_ROI)
 void CMC_GUIDlg::OnBnClickedMfcbuttonChangeRoi()
 {
@@ -813,7 +934,51 @@ void CMC_GUIDlg::OnBnClickedMfcbuttonChangeRoi()
 	else {
 		SuspendThread(mainWindow->m_hThread);
 		localize_operation_area();
+		save_analysis_roi_ini_files();
 		ResumeThread(mainWindow->m_hThread);
 	}
 	
+}
+
+
+void CMC_GUIDlg::OnEnChangeMfceditbrowse2()
+{
+	// TODO:  If this is a RICHEDIT control, the control will not
+	// send this notification unless you override the CDialogEx::OnInitDialog()
+	// function and call CRichEditCtrl().SetEventMask()
+	// with the ENM_CHANGE flag ORed into the mask.
+
+	// TODO:  Add your control notification handler code here
+	UpdateData(true);
+	//AfxMessageBox(editbrowse_filename);
+	char classifier_filename_tmp[300];
+	strcpy(classifier_filename_tmp, CStringA(editbrowse_classifier_filename).GetString());
+	classifier_filename = string(classifier_filename_tmp);
+	/*
+	if (thread_start_flag == 1) {
+		refresh_program();
+	}
+	*/
+}
+
+
+
+void CMC_GUIDlg::OnEnChangeMfceditbrowse3Pm()
+{
+	// TODO:  If this is a RICHEDIT control, the control will not
+	// send this notification unless you override the CDialogEx::OnInitDialog()
+	// function and call CRichEditCtrl().SetEventMask()
+	// with the ENM_CHANGE flag ORed into the mask.
+
+	// TODO:  Add your control notification handler code here
+	UpdateData(true);
+	//AfxMessageBox(editbrowse_filename);
+	char motorcycle_plate_cascade_name_tmp[300];
+	strcpy(motorcycle_plate_cascade_name_tmp, CStringA(editbrowse_cascade_filename).GetString());
+	motorcycle_plate_cascade_name = string(motorcycle_plate_cascade_name_tmp);
+	/*
+	if (thread_start_flag == 1) {
+		refresh_program();
+	}
+	*/
 }
