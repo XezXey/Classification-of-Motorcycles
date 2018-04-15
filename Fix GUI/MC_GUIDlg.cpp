@@ -230,7 +230,7 @@ int video_processing(String input_filename)
 			//Rect roi(tl_rect_roi.x, tl_rect_roi.y, (plates[i].width), (plates[i].height));
 
 			//We Use tl(x,y) to draw and RoI and control size by using width and height
-			vector<int> width_height_corrected = check_correct_w_h(tl_rect_roi, plates[i].width * (640 / plates[i].width), plates[i].height * (480 / plates[i].height));
+			vector<int> width_height_corrected = check_correct_w_h(tl_rect_roi, plates[i].width, plates[i].height);
 
 			//Rect roi(tl_rect_roi.x, tl_rect_roi.y, (plates[i].width * 3) + 30, (plates[i].height * 3) + 40);
 			Rect roi(tl_rect_roi.x, tl_rect_roi.y, width_height_corrected[0], width_height_corrected[1]);
@@ -838,13 +838,21 @@ void CMC_GUIDlg::OnEnChangeMfceditbrowse1()
 
 void refresh_program(void) 
 {
-	TerminateThread(mainWindow->m_hThread, NULL);
-	thread_start_flag = 0;
-	CString errText;
-	errText.Format(L"Refresing...");
-	AfxMessageBox(errText);
-	mainWindow = AfxBeginThread(MyThreadProc, 0);
-	thread_start_flag = 1;
+	if (mainWindow == NULL) {
+		CString errText;
+		errText.Format(L"Program is not start yet.");
+		AfxMessageBox(errText);
+	}
+	else {
+		TerminateThread(mainWindow->m_hThread, NULL);
+		thread_start_flag = 0;
+		CString errText;
+		errText.Format(L"Refresing...");
+		AfxMessageBox(errText);
+		mainWindow = AfxBeginThread(MyThreadProc, 0);
+		thread_start_flag = 1;
+	}
+	
 }
 
 //Refresh Button (ID : IDC_BUTTON_REFRESH)
